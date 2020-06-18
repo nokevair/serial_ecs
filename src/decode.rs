@@ -22,7 +22,7 @@ pub struct State<R: Read> {
     bytes: Peekable<io::Bytes<R>>,
 }
 
-macro_rules! declare_parse_primitive {
+macro_rules! declare_decode_primitive {
     ($name:ident, $t:ty, $desc:literal, $($vars:ident)*) => {
         pub fn $name(&mut self) -> Result<$t, Error> {
             $(
@@ -56,17 +56,17 @@ impl<R: Read> State<R> {
         }
     }
 
-    declare_parse_primitive!(parse_u8, u8, "8-bit uint", a);
-    declare_parse_primitive!(parse_i8, i8, "8-bit int", a);
+    declare_decode_primitive!(decode_u8, u8, "8-bit uint", a);
+    declare_decode_primitive!(decode_i8, i8, "8-bit int", a);
 
-    declare_parse_primitive!(parse_u16, u16, "16-bit uint", a b);
-    declare_parse_primitive!(parse_i16, i16, "16-bit int", a b);
+    declare_decode_primitive!(decode_u16, u16, "16-bit uint", a b);
+    declare_decode_primitive!(decode_i16, i16, "16-bit int", a b);
 
-    declare_parse_primitive!(parse_u32, u32, "32-bit uint", a b c d);
-    declare_parse_primitive!(parse_i32, i32, "32-bit int", a b c d);
+    declare_decode_primitive!(decode_u32, u32, "32-bit uint", a b c d);
+    declare_decode_primitive!(decode_i32, i32, "32-bit int", a b c d);
 
-    declare_parse_primitive!(parse_i64, i64, "64-bit int", a b c d e f g h);
+    declare_decode_primitive!(decode_i64, i64, "64-bit int", a b c d e f g h);
 
-    declare_parse_primitive!(parse_f32, f32, "float", a b c d);
-    declare_parse_primitive!(parse_f64, f64, "double", a b c d e f g h);
+    declare_decode_primitive!(decode_f32, f32, "float", a b c d);
+    declare_decode_primitive!(decode_f64, f64, "double", a b c d e f g h);
 }

@@ -2,7 +2,7 @@ use super::*;
 use value::{Value, EntityId};
 
 fn parse_val(b: &[u8]) -> Result<Value, decode::Error> {
-    decode::State::new(b).parse_value()
+    decode::State::new(b).decode_value()
 }
 
 #[test]
