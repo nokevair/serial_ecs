@@ -1,5 +1,5 @@
 use super::{Error, Result};
-use super::parse::State;
+use super::parse;
 
 #[derive(PartialEq, Debug)]
 pub enum Value {
@@ -18,7 +18,7 @@ pub enum EntityId {
     Idx(u32),
 }
 
-impl<R: std::io::Read> State<R> {
+impl<R: std::io::Read> parse::State<R> {
     fn parse_bytes(&mut self, len: usize) -> Result<Value> {
         let mut bytes = Vec::new();
         for _ in 0..len {
@@ -38,30 +38,31 @@ impl<R: std::io::Read> State<R> {
     pub fn parse_value(&mut self) -> Result<Value> {
         let b = self.next("value")?;
         match b {
-            0b00000000 ..= 0b01111111 => Ok(Value::Int(b as i64)),
-            0b10000000 ..= 0b10001111 => self.parse_bytes((b - 0b10000000) as usize),
-            0b10010000 ..= 0b10011111 => self.parse_array((b - 0b10010000) as usize),
-            0b10100000 => { let len = self.parse_u8()?; self.parse_bytes(len as usize) }
-            0b10100001 => { let len = self.parse_u32()?; self.parse_bytes(len as usize) }
-            0b10100010 => { let len = self.parse_u8()?; self.parse_array(len as usize) }
-            0b10100011 => { let len = self.parse_u32()?; self.parse_array(len as usize) }
-            0b10100100 => Ok(Value::Bool(false)),
-            0b10100101 => Ok(Value::Bool(true)),
-            0b10100110 => Ok(Value::Float(self.parse_f32()? as f64)),
-            0b10100111 => Ok(Value::Float(self.parse_f64()?)),
-            0b10101000 => Ok(Value::Int(self.parse_i8()? as i64)),
-            0b10101001 => Ok(Value::Int(self.parse_i16()? as i64)),
-            0b10101010 => Ok(Value::Int(self.parse_i32()? as i64)),
-            0b10101011 => Ok(Value::Int(self.parse_i64()?)),
-            0b10101100 => Ok(Value::Maybe(None)),
-            0b10101101 => Ok(Value::Maybe(Some(Box::new(self.parse_value()?)))),
-            0b10101110 => Ok(Value::EntityId(EntityId::Idx(self.parse_u8()? as u32))),
-            0b10101111 => Ok(Value::EntityId(EntityId::Idx(self.parse_u16()? as u32))),
-            0b10110000 => Ok(Value::EntityId(EntityId::Idx(self.parse_u32()?))),
-            0b10110001 => Ok(Value::EntityId(EntityId::Invalid)),
-            0b11000000 ..= 0b11111111 => Ok(Value::EntityId(
-                EntityId::Idx((b - 0b11000000) as u32))),
-            _ => Err(Error::BadValueByte(b)),
+            0x00 ..= 0x7f => Ok(Value::Int(b as i64)),
+            0x80 ..= 0x8f => self.parse_bytes((b - 0x80) as usize),
+            0x90 ..= 0x9f => self.parse_array((b - 0x90) as usize),
+            0xa0 => { let len = self.parse_u8()?; self.parse_bytes(len as usize) }
+            0xa1 => { let len = self.parse_u32()?; self.parse_bytes(len as usize) }
+            0xa2 => { let len = self.parse_u8()?; self.parse_array(len as usize) }
+            0xa3 => { let len = self.parse_u32()?; self.parse_array(len as usize) }
+            0xa4 => Ok(Value::Bool(false)),
+            0xa5 => Ok(Value::Bool(true)),
+            0xa6 => Ok(Value::Float(self.parse_f32()? as f64)),
+            0xa7 => Ok(Value::Float(self.parse_f64()?)),
+            0xa8 => Ok(Value::Int(self.parse_i8()? as i64)),
+            0xa9 => Ok(Value::Int(self.parse_i16()? as i64)),
+            0xaa => Ok(Value::Int(self.parse_i32()? as i64)),
+            0xab => Ok(Value::Int(self.parse_i64()?)),
+            0xac => Ok(Value::Maybe(None)),
+            0xad => Ok(Value::Maybe(Some(Box::new(self.parse_value()?)))),
+            0xae => Ok(Value::EntityId(EntityId::Idx(self.parse_u8()? as u32))),
+            0xaf => Ok(Value::EntityId(EntityId::Idx(self.parse_u16()? as u32))),
+            0xb0 => Ok(Value::EntityId(EntityId::Idx(self.parse_u32()?))),
+            0xb1 => Ok(Value::EntityId(EntityId::Invalid)),
+
+            0xb2 ..= 0xbf => Err(Error::BadValueByte(b)),
+
+            0xc0 ..= 0xff => Ok(Value::EntityId(EntityId::Idx((b - 0xc0) as u32))),
         }
     }
 }
