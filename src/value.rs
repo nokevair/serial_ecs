@@ -1,3 +1,7 @@
+use std::convert::TryFrom;
+use std::io;
+
+use super::encode;
 use super::decode;
 
 #[derive(PartialEq, Debug)]
@@ -17,7 +21,7 @@ pub enum EntityId {
     Idx(u32),
 }
 
-impl<R: std::io::Read> decode::State<R> {
+impl<R: io::Read> decode::State<R> {
     fn parse_bytes(&mut self, len: usize) -> Result<Value, decode::Error> {
         let mut bytes = Vec::new();
         for _ in 0..len {
@@ -62,6 +66,105 @@ impl<R: std::io::Read> decode::State<R> {
             0xb2 ..= 0xbf => Err(decode::Error::BadValueByte(b)),
 
             0xc0 ..= 0xff => Ok(Value::EntityId(EntityId::Idx((b - 0xc0) as u32))),
+        }
+    }
+}
+
+impl<W: io::Write> encode::State<W> {
+    pub fn encode_value(&mut self, val: &Value) -> io::Result<()> {
+        match val {
+            Value::Bool(false) => self.write(&[0xa4]),
+            Value::Bool(true) => self.write(&[0xa5]),
+
+            Value::Int(i) => {
+                let i = *i;
+                // fit the number into as small a representation as possible
+                if (0..0x80).contains(&i) {
+                    self.write(&[i as u8])
+                } else if let Ok(i) = i8::try_from(i) {
+                    self.write(&[0xa8])?;
+                    self.write(&i.to_be_bytes())
+                } else if let Ok(i) = i64::try_from(i) {
+                    self.write(&[0xa9])?;
+                    self.write(&i.to_be_bytes())
+                } else if let Ok(i) = i32::try_from(i) {
+                    self.write(&[0xaa])?;
+                    self.write(&i.to_be_bytes())
+                } else {
+                    self.write(&[0xab])?;
+                    self.write(&i.to_be_bytes())
+                }
+            }
+
+            Value::Float(x) => {
+                self.write(&[0xa7])?;
+                self.write(&x.to_be_bytes())
+            }
+
+            Value::Bytes(bs) => {
+                let len = bs.len();
+                // fit the length header into as small a representation as possible
+                if let Ok(len) = u8::try_from(len) {
+                    if len < 0x10 {
+                        self.write(&[0x80 + len])?;
+                    } else {
+                        self.write(&[0xa0, len])?;
+                    }
+                } else if let Ok(len) = u32::try_from(len) {
+                    self.write(&[0xa1])?;
+                    self.write(&len.to_be_bytes())?;
+                } else {
+                    panic!("byte string is too large ({})", len);
+                }
+                self.write(&bs)
+            }
+
+            Value::Array(vs) => {
+                let len = vs.len();
+                // fit the length header into as small a representation as possible
+                if let Ok(len) = u8::try_from(len) {
+                    if len < 0x10 {
+                        self.write(&[0x90 + len])?;
+                    } else {
+                        self.write(&[0xa2, len])?;
+                    }
+                } else if let Ok(len) = u32::try_from(len) {
+                    self.write(&[0xa2])?;
+                    self.write(&len.to_be_bytes())?;
+                } else {
+                    panic!("array is too large ({})", len);
+                }
+                for v in vs {
+                    self.encode_value(&v)?;
+                }
+                Ok(())
+            }
+
+            Value::Maybe(None) => self.write(&[0xac]),
+            Value::Maybe(Some(v)) => {
+                self.write(&[0xad])?;
+                self.encode_value(&v)
+            }
+
+            Value::EntityId(EntityId::Idx(i)) => {
+                let i = *i;
+                if let Ok(i) = u8::try_from(i) {
+                    if i < 0x40 {
+                        self.write(&[0xc0 + i])
+                    } else {
+                        self.write(&[0xae, i])
+                    }
+                } else if let Ok(i) = u16::try_from(i) {
+                    self.write(&[0xaf])?;
+                    self.write(&i.to_be_bytes())
+                } else {
+                    self.write(&[0xc0])?;
+                    self.write(&i.to_be_bytes())
+                }
+            }
+
+            Value::EntityId(EntityId::Invalid) =>
+                self.write(&[0xc1]),
         }
     }
 }
