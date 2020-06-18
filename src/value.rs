@@ -1,4 +1,3 @@
-use super::{Error, Result};
 use super::decode;
 
 #[derive(PartialEq, Debug)]
@@ -19,7 +18,7 @@ pub enum EntityId {
 }
 
 impl<R: std::io::Read> decode::State<R> {
-    fn parse_bytes(&mut self, len: usize) -> Result<Value> {
+    fn parse_bytes(&mut self, len: usize) -> Result<Value, decode::Error> {
         let mut bytes = Vec::new();
         for _ in 0..len {
             bytes.push(self.next("byte string")?);
@@ -27,7 +26,7 @@ impl<R: std::io::Read> decode::State<R> {
         Ok(Value::Bytes(bytes))
     }
 
-    fn parse_array(&mut self, len: usize) -> Result<Value> {
+    fn parse_array(&mut self, len: usize) -> Result<Value, decode::Error> {
         let mut vals = Vec::new();
         for _ in 0..len {
             vals.push(self.parse_value()?);
@@ -35,7 +34,7 @@ impl<R: std::io::Read> decode::State<R> {
         Ok(Value::Array(vals))
     }
     
-    pub fn parse_value(&mut self) -> Result<Value> {
+    pub fn parse_value(&mut self) -> Result<Value, decode::Error> {
         let b = self.next("value")?;
         match b {
             0x00 ..= 0x7f => Ok(Value::Int(b as i64)),
@@ -60,7 +59,7 @@ impl<R: std::io::Read> decode::State<R> {
             0xb0 => Ok(Value::EntityId(EntityId::Idx(self.parse_u32()?))),
             0xb1 => Ok(Value::EntityId(EntityId::Invalid)),
 
-            0xb2 ..= 0xbf => Err(Error::BadValueByte(b)),
+            0xb2 ..= 0xbf => Err(decode::Error::BadValueByte(b)),
 
             0xc0 ..= 0xff => Ok(Value::EntityId(EntityId::Idx((b - 0xc0) as u32))),
         }

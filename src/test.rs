@@ -1,7 +1,7 @@
 use super::*;
 use value::{Value, EntityId};
 
-fn parse_val(b: &[u8]) -> Result<Value> {
+fn parse_val(b: &[u8]) -> Result<Value, decode::Error> {
     decode::State::new(b).parse_value()
 }
 
@@ -129,7 +129,7 @@ fn basic_vals() {
     for byte in 0xb2 .. 0xc0 {
         assert!(matches!(
             parse_val(&[byte]),
-            Err(Error::BadValueByte(b)) if b == byte
+            Err(decode::Error::BadValueByte(b)) if b == byte
         ));
     }
 }

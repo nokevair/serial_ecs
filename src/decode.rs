@@ -1,7 +1,21 @@
 use std::io::{self, Read};
 use std::iter::Peekable;
 
-use super::{Error, Result};
+#[derive(Debug)]
+pub enum Error {
+    Unexpected {
+        ex: &'static str,
+        got: &'static str,
+    },
+    BadValueByte(u8),
+    Io(io::Error),
+}
+
+impl From<io::Error> for Error {
+    fn from(err: io::Error) -> Self {
+        Self::Io(err)
+    }
+}
 
 pub struct State<R: Read> {
     idx: usize,
@@ -10,7 +24,7 @@ pub struct State<R: Read> {
 
 macro_rules! declare_parse_primitive {
     ($name:ident, $t:ty, $desc:literal, $($vars:ident)*) => {
-        pub fn $name(&mut self) -> Result<$t> {
+        pub fn $name(&mut self) -> Result<$t, Error> {
             $(
                 let $vars = self.next($desc)?;
             )*
@@ -27,7 +41,7 @@ impl<R: Read> State<R> {
         }
     }
 
-    pub fn try_next(&mut self) -> Result<Option<u8>> {
+    pub fn try_next(&mut self) -> Result<Option<u8>, Error> {
         let byte = self.bytes.next().transpose()?;
         if byte.is_some() {
             self.idx += 1;
@@ -35,10 +49,10 @@ impl<R: Read> State<R> {
         Ok(byte)
     }
 
-    pub fn next(&mut self, ex: &'static str) -> Result<u8> {
+    pub fn next(&mut self, ex: &'static str) -> Result<u8, Error> {
         match self.try_next()? {
             Some(byte) => Ok(byte),
-            None => Err(Error::Parse { ex, got: "EOF" }),
+            None => Err(Error::Unexpected { ex, got: "EOF" }),
         }
     }
 
