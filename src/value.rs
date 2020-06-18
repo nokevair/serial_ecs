@@ -84,7 +84,7 @@ impl<W: io::Write> encode::State<W> {
                 } else if let Ok(i) = i8::try_from(i) {
                     self.write(&[0xa8])?;
                     self.write(&i.to_be_bytes())
-                } else if let Ok(i) = i64::try_from(i) {
+                } else if let Ok(i) = i16::try_from(i) {
                     self.write(&[0xa9])?;
                     self.write(&i.to_be_bytes())
                 } else if let Ok(i) = i32::try_from(i) {
@@ -158,13 +158,13 @@ impl<W: io::Write> encode::State<W> {
                     self.write(&[0xaf])?;
                     self.write(&i.to_be_bytes())
                 } else {
-                    self.write(&[0xc0])?;
+                    self.write(&[0xb0])?;
                     self.write(&i.to_be_bytes())
                 }
             }
 
             Value::EntityId(EntityId::Invalid) =>
-                self.write(&[0xc1]),
+                self.write(&[0xb1]),
         }
     }
 }
