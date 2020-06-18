@@ -1,5 +1,5 @@
 use super::{Error, Result};
-use super::parse;
+use super::decode;
 
 #[derive(PartialEq, Debug)]
 pub enum Value {
@@ -18,7 +18,7 @@ pub enum EntityId {
     Idx(u32),
 }
 
-impl<R: std::io::Read> parse::State<R> {
+impl<R: std::io::Read> decode::State<R> {
     fn parse_bytes(&mut self, len: usize) -> Result<Value> {
         let mut bytes = Vec::new();
         for _ in 0..len {

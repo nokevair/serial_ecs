@@ -1,7 +1,7 @@
 mod error;
 use error::{Error, Result};
 
-mod parse;
+mod decode;
 pub mod value;
 
 #[cfg(test)]
