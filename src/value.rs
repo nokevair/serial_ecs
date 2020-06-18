@@ -59,6 +59,8 @@ impl<R: std::io::Read> State<R> {
             0b10101111 => Ok(Value::EntityId(EntityId::Idx(self.parse_u16()? as u32))),
             0b10110000 => Ok(Value::EntityId(EntityId::Idx(self.parse_u32()?))),
             0b10110001 => Ok(Value::EntityId(EntityId::Invalid)),
+            0b11000000 ..= 0b11111111 => Ok(Value::EntityId(
+                EntityId::Idx((b - 0b11000000) as u32))),
             _ => Err(Error::BadValueByte(b)),
         }
     }
