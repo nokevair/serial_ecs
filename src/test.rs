@@ -1,5 +1,5 @@
 use super::*;
-use value::Value;
+use value::{Value, EntityId};
 
 fn parse_val(b: &[u8]) -> Result<Value> {
     parse::State::new(b).parse_value()
@@ -84,5 +84,52 @@ fn basic_vals() {
             parse_val(&encoded).unwrap(),
             Value::Array(vec![Value::Float(PI_F32 as f64), Value::Float(PI_F64)]),
         )
+    }
+
+    // ints
+    assert_eq!(parse_val(b"\xa8\x7f").unwrap(), Value::Int(0x7f));
+    assert_eq!(parse_val(b"\xa8\x80").unwrap(), Value::Int(-0x80));
+    assert_eq!(parse_val(b"\xa9\x7f\xff").unwrap(), Value::Int(0x7fff));
+    assert_eq!(parse_val(b"\xa9\x80\x00").unwrap(), Value::Int(-0x8000));
+    assert_eq!(parse_val(b"\xaa\x7f\xff\xff\xff").unwrap(), Value::Int(0x7fffffff));
+    assert_eq!(parse_val(b"\xaa\x80\x00\x00\x00").unwrap(), Value::Int(-0x80000000));
+    assert_eq!(
+        parse_val(b"\xab\x7f\xff\xff\xff\xff\xff\xff\xff").unwrap(),
+        Value::Int(0x7fffffffffffffff),
+    );
+    assert_eq!(
+        parse_val(b"\xab\x80\x00\x00\x00\x00\x00\x00\x00").unwrap(),
+        Value::Int(-0x8000000000000000),
+    );
+
+    // optionals
+    assert_eq!(parse_val(b"\xac").unwrap(), Value::Maybe(None));
+    assert_eq!(parse_val(b"\xad\x01").unwrap(),
+        Value::Maybe(Some(Box::new(Value::Int(1)))));
+    assert_eq!(parse_val(b"\xad\xad\xad\xac").unwrap(),
+        Value::Maybe(Some(Box::new(
+            Value::Maybe(Some(Box::new(
+                Value::Maybe(Some(Box::new(
+                    Value::Maybe(None)))))))))));
+    
+    // entity IDs
+    assert_eq!(parse_val(b"\xae\xab").unwrap(),
+        Value::EntityId(EntityId::Idx(0xab)));
+    assert_eq!(parse_val(b"\xaf\xab\xcd").unwrap(),
+        Value::EntityId(EntityId::Idx(0xabcd)));
+    assert_eq!(parse_val(b"\xb0\xab\xcd\xef\x01").unwrap(),
+        Value::EntityId(EntityId::Idx(0xabcdef01)));
+    assert_eq!(parse_val(b"\xb1").unwrap(),
+        Value::EntityId(EntityId::Invalid));
+
+    assert_eq!(parse_val(b"\xc0").unwrap(), Value::EntityId(EntityId::Idx(0)));
+    assert_eq!(parse_val(b"\xff").unwrap(), Value::EntityId(EntityId::Idx(63)));
+
+    // invalid byte values
+    for byte in 0xb2 .. 0xc0 {
+        assert!(matches!(
+            parse_val(&[byte]),
+            Err(Error::BadValueByte(b)) if b == byte
+        ));
     }
 }
