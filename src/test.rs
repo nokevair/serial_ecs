@@ -8,7 +8,7 @@ fn parse_val(b: &[u8]) -> Result<Value, decode::Error> {
 #[test]
 fn basic_vals() {
     // 7-bit numeric literals
-    for b in 0..128 {
+    for b in 0..0x80 {
         assert_eq!(parse_val(&[b]).unwrap(), Value::Int(b as i64));
     }
 
@@ -49,7 +49,7 @@ fn basic_vals() {
         encoded.push(0xa2);
         encoded.push(N);
         for val in (0..N).map(|i| i.wrapping_mul(i)) {
-            if val < 128 {
+            if val < 0x80 {
                 encoded.push(val);
             } else {
                 encoded.push(0xa9);
@@ -123,7 +123,7 @@ fn basic_vals() {
         Value::EntityId(EntityId::Invalid));
 
     assert_eq!(parse_val(b"\xc0").unwrap(), Value::EntityId(EntityId::Idx(0)));
-    assert_eq!(parse_val(b"\xff").unwrap(), Value::EntityId(EntityId::Idx(63)));
+    assert_eq!(parse_val(b"\xff").unwrap(), Value::EntityId(EntityId::Idx(0x3f)));
 
     // invalid byte values
     for byte in 0xb2 .. 0xc0 {
