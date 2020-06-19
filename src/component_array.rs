@@ -23,6 +23,10 @@ pub struct ComponentMut<'a> {
 }
 
 impl ComponentArray {
+    pub fn is_empty(&self) -> bool {
+        self.scheme.is_empty()
+    }
+    
     pub fn get(&self, idx: u32) -> Option<ComponentRef> {
         let scheme_len = self.scheme.len() as u32;
         let start = idx.checked_mul(scheme_len)? as usize;
