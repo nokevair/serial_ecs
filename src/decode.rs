@@ -9,6 +9,7 @@ pub enum Error {
     },
     BadValueByte(u8),
     Io(io::Error),
+    BadHeader(&'static str),
 }
 
 impl From<io::Error> for Error {
@@ -69,4 +70,19 @@ impl<R: Read> State<R> {
 
     declare_decode_primitive!(decode_f32, f32, "float", a b c d);
     declare_decode_primitive!(decode_f64, f64, "double", a b c d e f g h);
+
+    pub fn decode_header_line(&mut self, ex: &'static str) -> Result<Vec<String>, Error> {
+        let mut line = String::new();
+        loop {
+            let byte = self.next(ex)?;
+            if byte == b'\n' {
+                break;
+            } else if byte.is_ascii() {
+                line.push(byte as char);
+            } else {
+                return Err(Error::Unexpected { ex, got: "non-ascii char" })
+            }
+        }
+        Ok(line.split_whitespace().map(String::from).collect())
+    }
 }

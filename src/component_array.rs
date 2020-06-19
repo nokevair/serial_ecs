@@ -1,6 +1,12 @@
+use std::io;
+
+use super::decode;
+
 use super::value::Value;
 
 pub struct ComponentArray {
+    name: String,
+    id: u16,
     scheme: Vec<String>,
     values: Vec<Value>,
 }
@@ -59,5 +65,44 @@ impl<'a> ComponentMut<'a> {
 
     pub fn field_mut(&'a mut self, name: &str) -> Option<&'a mut Value> {
         Some(&mut self.values[self.field_idx(name)?])
+    }
+}
+
+impl<R: io::Read> decode::State<R> {
+    pub fn decode_component_array(&mut self) -> Result<ComponentArray, decode::Error> {
+        let mut header = self.decode_header_line("ASCII component array header")?;
+        let err = Err(decode::Error::BadHeader("component array"));
+
+        // the first entry in the header should be the literal string `COMPONENT`
+        if header.len() < 4 || header.remove(0) != "COMPONENT" {
+            return err;
+        }
+        
+        // the second entry in the header should be the name of the component
+        let name = header.remove(0);
+
+        // the third entry is the ID of the component
+        let id = match header.remove(0).parse::<u16>() {
+            Ok(id) => id,
+            Err(_) => return err,
+        };
+
+        // the fourth entry is the number of components
+        let num_components = match header.remove(0).parse::<u32>() {
+            Ok(n) => n,
+            Err(_) => return err,
+        };
+
+        // the rest of the entries describe the scheme
+        let scheme = header;
+
+        // decode the list of values comprising the component fields
+        let num_values = num_components * scheme.len() as u32;
+        let mut values = Vec::with_capacity(num_values as usize);
+        for _ in 0..num_values {
+            values.push(self.decode_value()?);
+        }
+
+        Ok(ComponentArray { name, id, scheme, values })
     }
 }
