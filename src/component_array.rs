@@ -39,6 +39,10 @@ impl ComponentArray {
         self.scheme.is_empty()
     }
 
+    pub fn field_idx(&self, name: &str) -> Option<usize> {
+        self.scheme.iter().position(|n| n == name)
+    }
+
     pub fn get(&self, idx: u32) -> Option<ComponentRef> {
         let scheme_len = self.scheme.len() as u32;
         let start = idx.checked_mul(scheme_len)? as usize;
