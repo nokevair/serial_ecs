@@ -1,5 +1,7 @@
 use super::*;
+
 use value::{Value, EntityId};
+use component_array::{ComponentArray, ComponentRef, ComponentMut};
 
 fn decode_value(b: &[u8]) -> Result<Value, decode::Error> {
     decode::State::new(b).decode_value()
@@ -147,16 +149,16 @@ fn value_encoding() {
     // syntax errors:
 
     // 1. string, array, option, and numeric literals that are too short
-    assert!(matches!(decode_value(b"\x85test"), Err(_)));
-    assert!(matches!(decode_value(b"\x97foobar"), Err(_)));
-    assert!(matches!(decode_value(b"\xa6\x00\x00\x00"), Err(_)));
-    assert!(matches!(decode_value(b"\xa7\x00\x00\x00\x00\x00\x00\x00"), Err(_)));
-    assert!(matches!(decode_value(b"\xa8"), Err(_)));
-    assert!(matches!(decode_value(b"\xa9\x00"), Err(_)));
-    assert!(matches!(decode_value(b"\xaa\x00\x00\x00"), Err(_)));
-    assert!(matches!(decode_value(b"\xab\x00\x00\x00\x00\x00\x00\x00"), Err(_)));
-    assert!(matches!(decode_value(b"\xad"), Err(_)));
-    assert!(matches!(decode_value(b"\xad\xad\xad\xad"), Err(_)));
+    assert!(decode_value(b"\x85test").is_err());
+    assert!(decode_value(b"\x97foobar").is_err());
+    assert!(decode_value(b"\xa6\x00\x00\x00").is_err());
+    assert!(decode_value(b"\xa7\x00\x00\x00\x00\x00\x00\x00").is_err());
+    assert!(decode_value(b"\xa8").is_err());
+    assert!(decode_value(b"\xa9\x00").is_err());
+    assert!(decode_value(b"\xaa\x00\x00\x00").is_err());
+    assert!(decode_value(b"\xab\x00\x00\x00\x00\x00\x00\x00").is_err());
+    assert!(decode_value(b"\xad").is_err());
+    assert!(decode_value(b"\xad\xad\xad\xad").is_err());
 
     // 2. invalid byte values
     for byte in 0xb2 .. 0xc0 {
@@ -164,5 +166,106 @@ fn value_encoding() {
             decode_value(&[byte]),
             Err(decode::Error::BadValueByte(b)) if b == byte
         ));
+    }
+}
+
+fn decode_component_array(b: &[u8]) -> Result<ComponentArray, decode::Error> {
+    decode::State::new(b).decode_component_array()
+}
+
+#[test]
+fn component_array_encoding() {
+    // error: malformed header
+    assert!(decode_component_array(b"").is_err());
+    assert!(decode_component_array(b"COMPONENT").is_err());
+    assert!(decode_component_array(b"COMPONENT foo 0").is_err());
+    assert!(decode_component_array(b"COMPONENT foo 0 0").is_err());
+    assert!(decode_component_array(b"TNENOPMOC foo 0 0\n").is_err());
+
+    // ok: properly formed header
+    {
+        let empty_array = decode_component_array(b"COMPONENT foo 31415 0\n").unwrap();
+        assert!(empty_array.is_empty());
+        assert_eq!(empty_array.name(), "foo");
+        assert_eq!(empty_array.id(), 31415);
+
+        // error: id too large
+        assert!(decode_component_array(b"COMPONENT foo 65535 0\n").is_ok());
+        assert!(decode_component_array(b"COMPONENT foo 65536 0\n").is_err());
+
+        // ok: header with components
+        let scheme = decode_component_array(b"COMPONENT foo 0 0 a b c d e f\n").unwrap();
+        assert_eq!(scheme.scheme(), &[
+            "a".to_string(),
+            "b".to_string(),
+            "c".to_string(),
+            "d".to_string(),
+            "e".to_string(),
+            "f".to_string(),
+        ]);
+    }
+
+    // err: header with unicode
+    assert!(decode_component_array(b"COMPONENT \xc1\xa1foo 0 0\n").is_err());
+
+    // ok: header with symbols
+    assert_eq!(decode_component_array(b"COMPONENT foo! 0 0\n").unwrap().name(), "foo!");
+
+    // err: too few values
+    assert!(decode_component_array(
+        b"COMPONENT point 0 5 x y\n\
+          \x00\x01\x02\x03\x04\x05\x06\x07\x08"
+    ).is_err());
+
+    // ok: correct number of values
+    {
+        let array = decode_component_array(
+            b"COMPONENT point 21718 3 x y\n\
+              \xa9\x12\x34\xa9\x23\x45\
+              \xa9\x34\x56\xa9\x45\x67\
+              \xa9\x56\x78\xa9\x67\x89"
+        ).unwrap();
+
+        assert_eq!(array.name(), "point");
+        assert_eq!(array.id(), 21718);
+        assert_eq!(array.scheme(), &["x".to_string(), "y".to_string()]);
+
+        let comp_0 = array.get(0).unwrap();
+        assert_eq!(comp_0.field("x"), Some(&Value::Int(0x1234)));
+        assert_eq!(comp_0.field("y"), Some(&Value::Int(0x2345)));
+
+        let comp_1 = array.get(1).unwrap();
+        assert_eq!(comp_1.field("x"), Some(&Value::Int(0x3456)));
+        assert_eq!(comp_1.field("y"), Some(&Value::Int(0x4567)));
+
+        let comp_2 = array.get(2).unwrap();
+        assert_eq!(comp_2.field("x"), Some(&Value::Int(0x5678)));
+        assert_eq!(comp_2.field("y"), Some(&Value::Int(0x6789)));
+    }
+
+    // ok: mutating a component
+    {
+        let mut bytes = Vec::new();
+        const N: u8 = 100;
+        for i in (0..N).map(|i| i.wrapping_mul(i)) {
+            bytes.push(i);
+        }
+
+        let mut array = decode_component_array(
+            b"COMPONENT bytes 0 1 %\n\xac"
+        ).unwrap();
+
+        let mut component = array.get_mut(0).unwrap();
+        match component.field_mut("%").unwrap() {
+            Value::Maybe(m) => {
+                assert_eq!(*m, None);
+                *m = Some(Box::new(Value::Bytes(bytes.clone())));
+            }
+            _ => panic!(),
+        }
+
+        let component = array.get(0).unwrap();
+        assert_eq!(component.values, &[Value::Maybe(
+            Some(Box::new(Value::Bytes(bytes))))]);
     }
 }
