@@ -57,29 +57,6 @@ impl<R: Read> State<R> {
         }
     }
 
-    pub fn try_peek(&mut self) -> Result<Option<u8>, Error> {
-        let res = match self.bytes.peek() {
-            Some(res) => res,
-            None => return Ok(None),
-        };
-        match res {
-            Ok(byte) => Ok(Some(*byte)),
-            Err(_) => {
-                // at this point, we only have a reference to `io::Error`,
-                // and we can't clone it, so we need to pop the value in
-                // order to take ownership
-                self.try_next()
-            }
-        }
-    }
-
-    pub fn peek(&mut self, ex: &'static str) -> Result<u8, Error> {
-        match self.try_peek()? {
-            Some(byte) => Ok(byte),
-            None => Err(Error::Unexpected { ex, got: "EOF" }),
-        }
-    }
-
     declare_decode_primitive!(decode_u8, u8, "8-bit uint", a);
     declare_decode_primitive!(decode_i8, i8, "8-bit int", a);
 
