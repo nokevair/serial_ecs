@@ -1,15 +1,16 @@
+use std::ascii;
+use std::borrow::Cow;
 use std::io::{self, Read};
 use std::iter::Peekable;
 
 #[derive(Debug)]
 pub enum Error {
     Unexpected {
-        ex: &'static str,
-        got: &'static str,
+        idx: usize,
+        ex: Cow<'static, str>,
+        got: Cow<'static, str>,
     },
-    BadValueByte(u8),
     Io(io::Error),
-    BadHeader(&'static str),
 }
 
 impl From<io::Error> for Error {
@@ -42,6 +43,18 @@ impl<R: Read> State<R> {
         }
     }
 
+    pub fn err_unexpected(
+        &self,
+        ex: impl Into<Cow<'static, str>>,
+        got: impl Into<Cow<'static, str>>,
+    ) -> Error {
+        Error::Unexpected {
+            idx: self.idx,
+            ex: ex.into(),
+            got: got.into(),
+        }
+    }
+
     pub fn try_next(&mut self) -> Result<Option<u8>, Error> {
         let byte = self.bytes.next().transpose()?;
         if byte.is_some() {
@@ -50,10 +63,10 @@ impl<R: Read> State<R> {
         Ok(byte)
     }
 
-    pub fn next(&mut self, ex: &'static str) -> Result<u8, Error> {
+    pub fn next(&mut self, ex: impl Into<Cow<'static, str>>) -> Result<u8, Error> {
         match self.try_next()? {
             Some(byte) => Ok(byte),
-            None => Err(Error::Unexpected { ex, got: "EOF" }),
+            None => Err(self.err_unexpected(ex, "EOF")),
         }
     }
 
@@ -80,7 +93,10 @@ impl<R: Read> State<R> {
             } else if byte.is_ascii() {
                 line.push(byte as char);
             } else {
-                return Err(Error::Unexpected { ex, got: "non-ascii char" })
+                return Err(self.err_unexpected(
+                    ex,
+                    format!("non-ASCII byte: {}", ascii::escape_default(byte)),
+                ))
             }
         }
         Ok(line.split_whitespace().map(String::from).collect())

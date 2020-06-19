@@ -86,12 +86,21 @@ impl<'a> ComponentMut<'a> {
 
 impl<R: io::Read> decode::State<R> {
     pub fn decode_component_array(&mut self) -> Result<ComponentArray, decode::Error> {
-        let mut header = self.decode_header_line("ASCII component array header")?;
-        let err = Err(decode::Error::BadHeader("component array"));
+        let mut header = self.decode_header_line("component array header")?;
 
         // the first entry in the header should be the literal string `COMPONENT`
-        if header.len() < 4 || header.remove(0) != "COMPONENT" {
-            return err;
+        if header.len() < 4 {
+            return Err(self.err_unexpected(
+                "component array header",
+                "too few fields",
+            ));
+        }
+
+        if header.remove(0) != "COMPONENT" {
+            return Err(self.err_unexpected(
+                "component array signature (COMPONENT)",
+                "invalid signature",
+            ));
         }
         
         // the second entry in the header should be the name of the component
@@ -100,13 +109,19 @@ impl<R: io::Read> decode::State<R> {
         // the third entry is the ID of the component
         let id = match header.remove(0).parse::<u16>() {
             Ok(id) => id,
-            Err(_) => return err,
+            Err(_) => return Err(self.err_unexpected(
+                "16-bit component ID",
+                "invalid ID",
+            )),
         };
 
         // the fourth entry is the number of components
         let num_components = match header.remove(0).parse::<u32>() {
             Ok(n) => n,
-            Err(_) => return err,
+            Err(_) => return Err(self.err_unexpected(
+                "32-bit component count",
+                "invalid component count",
+            )),
         };
 
         // the rest of the entries describe the scheme

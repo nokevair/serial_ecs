@@ -63,7 +63,10 @@ impl<R: io::Read> decode::State<R> {
             0xb0 => Ok(Value::EntityId(EntityId::Idx(self.decode_u32()?))),
             0xb1 => Ok(Value::EntityId(EntityId::Invalid)),
 
-            0xb2 ..= 0xbf => Err(decode::Error::BadValueByte(b)),
+            0xb2 ..= 0xbf => Err(self.err_unexpected(
+                "value",
+                format!("invalid byte ({:02x})", b),
+            )),
 
             0xc0 ..= 0xff => Ok(Value::EntityId(EntityId::Idx((b - 0xc0) as u32))),
         }

@@ -162,10 +162,7 @@ fn value_encoding() {
 
     // 2. invalid byte values
     for byte in 0xb2 .. 0xc0 {
-        assert!(matches!(
-            decode_value(&[byte]),
-            Err(decode::Error::BadValueByte(b)) if b == byte
-        ));
+        assert!(decode_value(&[byte]).is_err());
     }
 }
 
