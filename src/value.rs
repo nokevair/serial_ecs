@@ -23,7 +23,7 @@ pub enum EntityId {
 
 impl<R: io::Read> decode::State<R> {
     fn decode_bytes(&mut self, len: usize) -> Result<Value, decode::Error> {
-        let mut bytes = Vec::new();
+        let mut bytes = Vec::with_capacity(len);
         for _ in 0..len {
             bytes.push(self.next("byte string")?);
         }
@@ -31,7 +31,7 @@ impl<R: io::Read> decode::State<R> {
     }
 
     fn decode_array(&mut self, len: usize) -> Result<Value, decode::Error> {
-        let mut vals = Vec::new();
+        let mut vals = Vec::with_capacity(len);
         for _ in 0..len {
             vals.push(self.decode_value()?);
         }
