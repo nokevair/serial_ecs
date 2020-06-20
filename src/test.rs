@@ -170,6 +170,18 @@ fn decode_component_array(b: &[u8]) -> Result<ComponentArray, decode::Error> {
     decode::State::new(b).decode_component_array()
 }
 
+fn encode_component_array(array: &ComponentArray) -> Vec<u8> {
+    let mut encoded = Vec::new();
+    encode::State::new(&mut encoded).encode_component_array(array).unwrap();
+    encoded
+}
+
+fn check_component_array_round_trip(b: &[u8]) {
+    let array = decode_component_array(b).unwrap();
+    let encoded = encode_component_array(&array);
+    assert_eq!(encoded.as_slice(), b);
+}
+
 #[test]
 fn component_array_encoding() {
     // error: malformed header
@@ -261,8 +273,14 @@ fn component_array_encoding() {
             _ => panic!(),
         }
 
-        let component = array.get(0).unwrap();
-        assert_eq!(component.values, &[Value::Maybe(
-            Some(Box::new(Value::Bytes(bytes))))]);
+        let mut encoded = Vec::new();
+        encoded.extend_from_slice(b"COMPONENT bytes 0 1 %\n\xad\xa0");
+        encoded.push(N);
+        encoded.extend_from_slice(&bytes);
+        assert_eq!(encode_component_array(&array), encoded);
     }
+
+    // ensure that various other things round-trip correctly
+    check_component_array_round_trip(b"COMPONENT 2 1 0 1 2\n");
+    check_component_array_round_trip(b"COMPONENT foo\x00bar 11111 1 foo bar\n\x01\x02");
 }
