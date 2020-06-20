@@ -191,6 +191,11 @@ fn component_array_encoding() {
     assert!(decode_component_array(b"COMPONENT foo 0 0").is_err());
     assert!(decode_component_array(b"TNENOPMOC foo 0 0\n").is_err());
 
+    // error: duplicate fields
+    assert!(decode_component_array(b"COMPONENT foo 0 0 a a\n").is_err());
+    assert!(decode_component_array(b"COMPONENT foo 0 0 a b a\n").is_err());
+    assert!(decode_component_array(b"COMPONENT foo 0 0 a b c d a f\n").is_err());
+
     // ok: properly formed header
     {
         let empty_array = decode_component_array(b"COMPONENT foo 31415 0\n").unwrap();
@@ -214,13 +219,13 @@ fn component_array_encoding() {
         ]);
     }
 
-    // err: header with unicode
+    // error: header with unicode
     assert!(decode_component_array(b"COMPONENT \xc1\xa1foo 0 0\n").is_err());
 
     // ok: header with symbols
     assert_eq!(decode_component_array(b"COMPONENT foo! 0 0\n").unwrap().name(), "foo!");
 
-    // err: too few values
+    // error: too few values
     assert!(decode_component_array(
         b"COMPONENT point 0 5 x y\n\
           \x00\x01\x02\x03\x04\x05\x06\x07\x08"

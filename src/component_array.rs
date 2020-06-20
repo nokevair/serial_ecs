@@ -131,6 +131,16 @@ impl<R: io::Read> decode::State<R> {
 
         // the rest of the entries describe the scheme
         let scheme = header;
+        
+        // ensure that the scheme has no duplicate fields
+        for (i, field_name) in scheme.iter().enumerate() {
+            if scheme[..i].contains(field_name) {
+                return Err(self.err_unexpected(
+                    "distinct field names",
+                    format!("duplicate name: {:?}", field_name),
+                ))
+            }
+        }
 
         // decode the list of values comprising the component fields
         let num_values = num_components * scheme.len() as u32;
