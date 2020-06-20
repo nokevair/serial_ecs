@@ -1,5 +1,7 @@
+use std::fmt::Write;
 use std::io;
 
+use super::encode;
 use super::decode;
 
 use super::value::Value;
@@ -92,7 +94,6 @@ impl<R: io::Read> decode::State<R> {
     pub fn decode_component_array(&mut self) -> Result<ComponentArray, decode::Error> {
         let mut header = self.decode_header_line("component array header")?;
 
-        // the first entry in the header should be the literal string `COMPONENT`
         if header.len() < 4 {
             return Err(self.err_unexpected(
                 "component array header",
@@ -100,6 +101,7 @@ impl<R: io::Read> decode::State<R> {
             ));
         }
 
+        // the first entry in the header should be the literal string `COMPONENT`
         if header.remove(0) != "COMPONENT" {
             return Err(self.err_unexpected(
                 "component array signature (COMPONENT)",
@@ -139,5 +141,24 @@ impl<R: io::Read> decode::State<R> {
         }
 
         Ok(ComponentArray { name, id, scheme, values })
+    }
+}
+
+impl<W: io::Write> encode::State<W> {
+    pub fn encode_component_array(&mut self, array: &ComponentArray) -> io::Result<()> {
+        self.write(b"COMPONENT ")?;
+        let len = array.values.len()
+            .checked_div(array.scheme.len())
+            .unwrap_or(0);
+        self.write(format!("{} {} {}", array.name, array.id, len).as_bytes())?;
+        for field_name in &array.scheme {
+            self.write(b" ")?;
+            self.write(field_name.as_bytes())?;
+        }
+        self.write(b"\n")?;
+        for value in &array.values {
+            self.encode_value(value)?;
+        }
+        Ok(())
     }
 }
