@@ -5,6 +5,17 @@ use super::decode;
 
 use super::value::Value;
 
+// Find the first duplicate in `vals` using an `O(n^2)` algorithm.
+// This should probably only be used on small arrays.
+fn find_duplicate_quadratic<T: Eq>(ts: &[T]) -> Option<&T> {
+    ts.iter().enumerate().find_map(
+        |(i, t)| if ts[..i].contains(t) {
+            Some(t)
+        } else {
+            None
+        })
+}
+
 pub struct ComponentArray {
     name: String,
     id: u16,
@@ -167,13 +178,11 @@ impl<R: io::Read> decode::State<R> {
         let scheme = header;
         
         // ensure that the scheme has no duplicate fields
-        for (i, field_name) in scheme.iter().enumerate() {
-            if scheme[..i].contains(field_name) {
-                return Err(self.err_unexpected(
-                    "distinct field names",
-                    format!("duplicate name: {:?}", field_name),
-                ))
-            }
+        if let Some(dup) = find_duplicate_quadratic(&scheme) {
+            return Err(self.err_unexpected(
+                "distinct field names",
+                format!("duplicate name: {:?}", dup),
+            ))
         }
 
         // decode the list of values comprising the component fields
@@ -206,6 +215,14 @@ impl<R: io::Read> decode::State<R> {
         }
 
         let scheme = header;
+
+        // ensure that the scheme has no duplicate fields
+        if let Some(dup) = find_duplicate_quadratic(&scheme) {
+            return Err(self.err_unexpected(
+                "distinct field names",
+                format!("duplicate name: {:?}", dup),
+            ));
+        }
 
         let num_values = scheme.len();
         let mut values = Vec::with_capacity(num_values);

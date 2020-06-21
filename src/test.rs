@@ -315,6 +315,11 @@ fn global_component_encoding() {
         assert!(component.is_empty());
     }
 
+    // error: duplicate fields
+    assert!(decode_global_component(b"GLOBAL a a\n").is_err());
+    assert!(decode_global_component(b"GLOBAL a b a\n").is_err());
+    assert!(decode_global_component(b"GLOBAL a b c d a f\n").is_err());
+
     // error: too few values
     assert!(decode_global_component(b"GLOBAL a\n").is_err());
     assert!(decode_global_component(b"GLOBAL a b\n\x00").is_err());
