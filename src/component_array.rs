@@ -126,10 +126,11 @@ impl<R: io::Read> decode::State<R> {
         }
 
         // the first entry in the header should be the literal string `COMPONENT`
-        if header.remove(0) != "COMPONENT" {
+        let signature = header.remove(0);
+        if signature != "COMPONENT" {
             return Err(self.err_unexpected(
                 "component array signature (COMPONENT)",
-                "invalid signature",
+                format!("invalid signature: {:?}", signature),,
             ));
         }
         
@@ -188,10 +189,11 @@ impl<R: io::Read> decode::State<R> {
         }
 
         // the first entry in the header should be the literal string "GLOBAL"
-        if header.remove(0) != "GLOBAL" {
+        let signature = header.remove(0);
+        if signature != "GLOBAL" {
             return Err(self.err_unexpected(
                 "global component signature (GLOBAL)",
-                "invalid signature",
+                format!("invalid signature: {:?}", signature),
             ));
         }
 
