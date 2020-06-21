@@ -176,6 +176,35 @@ impl<R: io::Read> decode::State<R> {
 
         Ok(ComponentArray { name, id, scheme, values })
     }
+
+    pub fn decode_global_component(&mut self) -> Result<GlobalComponent, decode::Error> {
+        let mut header = self.decode_header_line("global component header")?;
+        
+        if header.is_empty() {
+            return Err(self.err_unexpected(
+                "global component header",
+                "too few fields",
+            ));
+        }
+
+        // the first entry in the header should be the literal string "GLOBAL"
+        if header.remove(0) != "GLOBAL" {
+            return Err(self.err_unexpected(
+                "global component signature (GLOBAL)",
+                "invalid signature",
+            ));
+        }
+
+        let scheme = header;
+
+        let num_values = scheme.len();
+        let mut values = Vec::with_capacity(num_values);
+        for _ in 0..num_values {
+            values.push(self.decode_value()?);
+        }
+
+        Ok(GlobalComponent { scheme, values })
+    }
 }
 
 impl<W: io::Write> encode::State<W> {
