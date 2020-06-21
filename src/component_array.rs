@@ -75,6 +75,14 @@ impl GlobalComponent {
         &self.scheme
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.scheme.is_empty()
+    }
+
+    pub fn field_idx(&self, name: &str) -> Option<usize> {
+        self.scheme.iter().position(|n| n == name)
+    }
+
     pub fn get(&self) -> ComponentRef {
         ComponentRef {
             scheme: &self.scheme,
@@ -130,7 +138,7 @@ impl<R: io::Read> decode::State<R> {
         if signature != "COMPONENT" {
             return Err(self.err_unexpected(
                 "component array signature (COMPONENT)",
-                format!("invalid signature: {:?}", signature),,
+                format!("invalid signature: {:?}", signature),
             ));
         }
         
