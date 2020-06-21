@@ -1,7 +1,7 @@
 use super::*;
 
 use value::{Value, EntityId};
-use component_array::{ComponentArray, ComponentRef, ComponentMut};
+use component_array::{ComponentArray, GlobalComponent};
 
 fn decode_value(b: &[u8]) -> Result<Value, decode::Error> {
     decode::State::new(b).decode_value()
@@ -288,4 +288,76 @@ fn component_array_encoding() {
     // ensure that various other things round-trip correctly
     check_component_array_round_trip(b"COMPONENT 2 1 0 1 2\n");
     check_component_array_round_trip(b"COMPONENT foo\x00bar 11111 1 foo bar\n\x01\x02");
+}
+
+fn decode_global_component(b: &[u8]) -> Result<GlobalComponent, decode::Error> {
+    decode::State::new(b).decode_global_component()
+}
+
+fn encode_global_component(global: &GlobalComponent) -> Vec<u8> {
+    let mut encoded = Vec::new();
+    encode::State::new(&mut encoded).encode_global_component(global).unwrap();
+    encoded
+}
+
+#[test]
+fn global_component_encoding() {
+    // error: malformed header
+    assert!(decode_global_component(b"").is_err());
+    assert!(decode_global_component(b"GLOBAL").is_err());
+    assert!(decode_global_component(b"LABOLG\n").is_err());
+    
+    // ok: properly formed header
+    {
+        let component = decode_global_component(b"GLOBAL\n").unwrap();
+        assert!(component.is_empty());
+    }
+
+    // error: too few values
+    assert!(decode_global_component(b"GLOBAL a\n").is_err());
+    assert!(decode_global_component(b"GLOBAL a b\n\x00").is_err());
+
+    // ok: correct number of values
+    {
+        let global = decode_global_component(b"GLOBAL x y z\n\x12\x34\x56").unwrap();
+        assert!(!global.is_empty());
+        assert_eq!(global.scheme(), &[
+            "x".to_string(),
+            "y".to_string(),
+            "z".to_string(),
+        ]);
+        assert_eq!(global.field_idx("x"), Some(0));
+        assert_eq!(global.field_idx("y"), Some(1));
+        assert_eq!(global.field_idx("z"), Some(2));
+
+        let component = global.get();
+        assert_eq!(component.field("x"), Some(&Value::Int(0x12)));
+        assert_eq!(component.field("y"), Some(&Value::Int(0x34)));
+        assert_eq!(component.field("z"), Some(&Value::Int(0x56)));
+    }
+
+    // ok: mutating a component
+    {
+        let mut bytes = Vec::new();
+        const N: u8 = 100;
+        for i in (0..N).map(|i| i.wrapping_mul(i)) {
+            bytes.push(i);
+        }
+
+        let mut global = decode_global_component(b"GLOBAL bytes\n\xac").unwrap();
+        let mut component = global.get_mut();
+        match component.field_mut("bytes").unwrap() {
+            Value::Maybe(m) => {
+                assert_eq!(*m, None);
+                *m = Some(Box::new(Value::Bytes(bytes.clone())));
+            }
+            _ => panic!()
+        }
+
+        let mut encoded = Vec::new();
+        encoded.extend_from_slice(b"GLOBAL bytes\n\xad\xa0");
+        encoded.push(N);
+        encoded.extend_from_slice(&bytes);
+        assert_eq!(encode_global_component(&global), encoded);
+    }
 }
