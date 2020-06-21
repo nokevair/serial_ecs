@@ -1,7 +1,7 @@
 use super::*;
 
 use value::{Value, EntityId};
-use component_array::{ComponentArray, GlobalComponent};
+use component::{ComponentArray, GlobalComponent};
 
 fn decode_value(b: &[u8]) -> Result<Value, decode::Error> {
     decode::State::new(b).decode_value()
