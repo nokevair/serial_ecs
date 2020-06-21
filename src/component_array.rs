@@ -224,4 +224,17 @@ impl<W: io::Write> encode::State<W> {
         }
         Ok(())
     }
+
+    pub fn encode_global_component(&mut self, global: &GlobalComponent) -> io::Result<()> {
+        self.write(b"GLOBAL")?;
+        for field_name in &global.scheme {
+            self.write(b" ")?;
+            self.write(field_name.as_bytes())?;
+        }
+        self.write(b"\n")?;
+        for value in &global.values {
+            self.encode_value(value)?;
+        }
+        Ok(())
+    }
 }
