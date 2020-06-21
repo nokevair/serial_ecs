@@ -12,6 +12,11 @@ pub struct ComponentArray {
     values: Vec<Value>,
 }
 
+pub struct GlobalComponent {
+    scheme: Vec<String>,
+    values: Vec<Value>,
+}
+
 #[derive(Clone, Copy)]
 pub struct ComponentRef<'a> {
     pub scheme: &'a [String],
@@ -62,6 +67,26 @@ impl ComponentArray {
             scheme: &self.scheme,
             values: self.values.get_mut(start .. end)?,
         })
+    }
+}
+
+impl GlobalComponent {
+    pub fn scheme(&self) -> &[String] {
+        &self.scheme
+    }
+
+    pub fn get(&self) -> ComponentRef {
+        ComponentRef {
+            scheme: &self.scheme,
+            values: &self.values,
+        }
+    }
+
+    pub fn get_mut(&mut self) -> ComponentMut {
+        ComponentMut {
+            scheme: &self.scheme,
+            values: &mut self.values,
+        }
     }
 }
 
