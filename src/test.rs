@@ -3,6 +3,12 @@ use super::*;
 use value::{Value, EntityId};
 use component::{ComponentArray, GlobalComponent};
 
+/// Return an arbitrary byte vector for testing purposes, as well as its length.
+fn get_bytes() -> (u8, Vec<u8>) {
+    const N: u8 = 100;
+    (N, (0..N).map(|i| i.wrapping_mul(i)).collect())
+}
+
 fn decode_value(b: &[u8]) -> Result<Value, decode::Error> {
     decode::State::new(b).decode_value()
 }
@@ -62,13 +68,13 @@ fn value_encoding() {
     // 8-bit array literals
     check_value_decode(b"\xa2\x00", Value::Array(Vec::new()));
     {
-        const N: u8 = 100;
+        let (n, vals) = get_bytes();
         let mut encoded = Vec::new();
         let mut expected_array = Vec::new();
 
         encoded.push(0xa2);
-        encoded.push(N);
-        for val in (0..N).map(|i| i.wrapping_mul(i)) {
+        encoded.push(n);
+        for val in vals {
             if val < 0x80 {
                 encoded.push(val);
             } else {
@@ -259,11 +265,7 @@ fn component_array_encoding() {
 
     // ok: mutating a component
     {
-        let mut bytes = Vec::new();
-        const N: u8 = 100;
-        for i in (0..N).map(|i| i.wrapping_mul(i)) {
-            bytes.push(i);
-        }
+        let (n, bytes) = get_bytes();
 
         let mut array = decode_component_array(
             b"COMPONENT bytes 0 1 %\n\xac"
@@ -280,7 +282,7 @@ fn component_array_encoding() {
 
         let mut encoded = Vec::new();
         encoded.extend_from_slice(b"COMPONENT bytes 0 1 %\n\xad\xa0");
-        encoded.push(N);
+        encoded.push(n);
         encoded.extend_from_slice(&bytes);
         assert_eq!(encode_component_array(&array), encoded);
     }
@@ -338,11 +340,7 @@ fn global_component_encoding() {
 
     // ok: mutating a component
     {
-        let mut bytes = Vec::new();
-        const N: u8 = 100;
-        for i in (0..N).map(|i| i.wrapping_mul(i)) {
-            bytes.push(i);
-        }
+        let (n, bytes) = get_bytes();
 
         let mut global = decode_global_component(b"GLOBAL bytes\n\xac").unwrap();
         let mut component = global.get_mut();
@@ -356,7 +354,7 @@ fn global_component_encoding() {
 
         let mut encoded = Vec::new();
         encoded.extend_from_slice(b"GLOBAL bytes\n\xad\xa0");
-        encoded.push(N);
+        encoded.push(n);
         encoded.extend_from_slice(&bytes);
         assert_eq!(encode_global_component(&global), encoded);
     }
