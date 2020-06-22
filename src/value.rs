@@ -100,8 +100,15 @@ impl<W: io::Write> encode::State<W> {
             }
 
             Value::Float(x) => {
-                self.write(&[0xa7])?;
-                self.write(&x.to_be_bytes())
+                // represent the float with only 32 bits if possible
+                let x_f32 = *x as f32;
+                if x_f32 as f64 == *x {
+                    self.write(&[0xa6])?;
+                    self.write(&x_f32.to_be_bytes())
+                } else {
+                    self.write(&[0xa7])?;
+                    self.write(&x.to_be_bytes())
+                }
             }
 
             Value::Bytes(bs) => {

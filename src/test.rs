@@ -106,8 +106,7 @@ fn value_encoding() {
         encoded.push(0xa7);
         encoded.extend_from_slice(&PI_F64.to_be_bytes());
 
-        // don't attempt to round-trip, since f64s aren't converted back to f32s.
-        check_value_decode(
+        check_value_round_trip(
             &encoded,
             Value::Array(vec![Value::Float(PI_F32 as f64), Value::Float(PI_F64)]),
         )
