@@ -25,6 +25,18 @@ pub struct State<R: Read> {
 }
 
 macro_rules! declare_decode_primitive {
+    // special case: 24-bit uint
+    (u24) => {
+        pub fn decode_u24(&mut self) -> Result<u32, Error> {
+            Ok(u32::from_be_bytes([
+                0,
+                self.next("24-bit uint")?,
+                self.next("24-bit uint")?,
+                self.next("24-bit uint")?,
+            ]))
+        }
+    };
+    
     ($name:ident, $t:ty, $desc:literal, $($vars:ident)*) => {
         pub fn $name(&mut self) -> Result<$t, Error> {
             $(
@@ -75,6 +87,8 @@ impl<R: Read> State<R> {
 
     declare_decode_primitive!(decode_u16, u16, "16-bit uint", a b);
     declare_decode_primitive!(decode_i16, i16, "16-bit int", a b);
+
+    declare_decode_primitive!(u24);
 
     declare_decode_primitive!(decode_u32, u32, "32-bit uint", a b c d);
     declare_decode_primitive!(decode_i32, i32, "32-bit int", a b c d);
