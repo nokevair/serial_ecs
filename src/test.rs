@@ -2,6 +2,7 @@ use super::*;
 
 use value::{Value, EntityId};
 use component::{ComponentArray, GlobalComponent};
+use entity::ComponentIdx;
 
 /// Return an arbitrary byte vector for testing purposes, as well as its length.
 fn get_bytes() -> (u8, Vec<u8>) {
@@ -367,5 +368,73 @@ fn global_component_encoding() {
         encoded.push(n);
         encoded.extend_from_slice(&bytes);
         assert_eq!(encode_global_component(&global), encoded);
+    }
+}
+
+fn decode_component_idx(b: &[u8]) -> Result<ComponentIdx, decode::Error> {
+    decode::State::new(b).decode_component_idx()
+}
+
+fn encode_component_idx(idx: ComponentIdx) -> Vec<u8> {
+    let mut encoded = Vec::new();
+    encode::State::new(&mut encoded).encode_component_idx(idx).unwrap();
+    encoded
+}
+
+fn check_component_idx_round_trip(b: &[u8], id: u16, idx: u32) {
+    let comp_idx = decode_component_idx(b).unwrap();
+    let encoded = encode_component_idx(comp_idx);
+    assert_eq!(encoded.as_slice(), b);
+    assert_eq!(comp_idx.id, id);
+    assert_eq!(comp_idx.idx, idx);
+}
+
+#[test]
+fn component_idx_encoding() {
+    // 6-bit id
+    for &id in &[0, 0xf, 0x1f, 0x2f, 0x3f] {
+        // 0-bit idx
+        check_component_idx_round_trip(&[0xc0 + id], id as u16, 0);
+        for &idx in &[1, 0x40, 0x7f, 0xbe, 0xfd] {
+            // 8-bit idx
+            check_component_idx_round_trip(&[id, idx], id as u16, idx as u32);
+            // 16-bit idx
+            check_component_idx_round_trip(&[0x40 + id, 1, idx], id as u16, idx as u32 + 0x100);
+            check_component_idx_round_trip(&[0x40 + id, 16, idx], id as u16, idx as u32 + 0x1000);
+        }
+    }
+
+    // 8-bit id
+    for &id in &[0x40, 0x7f, 0xbe, 0xfd] {
+        // 0-bit idx
+        check_component_idx_round_trip(&[0x88, id], id as u16, 0);
+        // 8-bit idx
+        check_component_idx_round_trip(&[0x80, id, id], id as u16, id as u32);
+        // 16-bit idx
+        check_component_idx_round_trip(&[0x81, id, id, id], id as u16,
+            u32::from_be_bytes([0, 0, id, id]));
+        // 24-bit idx
+        check_component_idx_round_trip(&[0x82, id, id, id, id], id as u16,
+            u32::from_be_bytes([0, id, id, id]));
+        // 32-bit idx
+        check_component_idx_round_trip(&[0x83, id, id, id, id, id], id as u16,
+            u32::from_be_bytes([id, id, id, id]));
+    }
+
+    // 16-bit id
+    for &id in &[0x100, 0x200, 0x1234, 0xffff] {
+        let [id_a, id_b] = u16::to_be_bytes(id);
+        // 0-bit idx
+        check_component_idx_round_trip(&[0x89, id_a, id_b], id, 0);
+        // 8-bit idx
+        check_component_idx_round_trip(&[0x84, id_a, id_b, id_a], id, id_a as u32);
+        // 16-bit idx
+        check_component_idx_round_trip(&[0x85, id_a, id_b, id_a, id_b], id, id as u32);
+        // 24-bit idx
+        check_component_idx_round_trip(&[0x86, id_a, id_b, id_a, id_b, id_a], id,
+            u32::from_be_bytes([0, id_a, id_b, id_a]));
+        // 32-bit idx
+        check_component_idx_round_trip(&[0x87, id_a, id_b, id_a, id_b, id_a, id_b], id,
+            u32::from_be_bytes([id_a, id_b, id_a, id_b]));
     }
 }

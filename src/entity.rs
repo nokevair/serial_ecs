@@ -4,11 +4,12 @@ use std::io;
 use super::encode;
 use super::decode;
 
+#[derive(Clone, Copy)]
 pub(crate) struct ComponentIdx {
     // identifies the type of component
-    id: u16,
+    pub(crate) id: u16,
     // the index of the component itself
-    idx: u32,
+    pub(crate) idx: u32,
 }
 
 struct EntityData {
