@@ -62,6 +62,7 @@ impl ComponentArray {
 
     pub fn get(&self, idx: u32) -> Option<ComponentRef> {
         let scheme_len = self.scheme.len() as u32;
+        if scheme_len == 0 && idx != 0 { return None; }
         let start = idx.checked_mul(scheme_len)? as usize;
         let end = idx.checked_add(1)?.checked_mul(scheme_len)? as usize;
         Some(ComponentRef {
@@ -72,6 +73,7 @@ impl ComponentArray {
 
     pub fn get_mut(&mut self, idx: u32) -> Option<ComponentMut> {
         let scheme_len = self.scheme.len() as u32;
+        if scheme_len == 0 && idx != 0 { return None; }
         let start = idx.checked_mul(scheme_len)? as usize;
         let end = idx.checked_add(1)?.checked_mul(scheme_len)? as usize;
         Some(ComponentMut {
