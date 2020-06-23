@@ -12,7 +12,7 @@ pub(crate) struct ComponentIdx {
     pub(crate) idx: u32,
 }
 
-struct EntityData {
+pub(crate) struct EntityData {
     components: Vec<ComponentIdx>,
 }
 
@@ -41,6 +41,18 @@ impl<R: io::Read> decode::State<R> {
             0xc0 ..= 0xff => ((b - 0xc0) as u16, 0),
         };
         Ok(ComponentIdx { id, idx })
+    }
+
+    pub(crate) fn decode_entity_data(&mut self) -> Result<EntityData, decode::Error> {
+        let b = self.next("component index count")?;
+        let num_comp_idxs = if b == 0xff { self.decode_u16()? } else { b as u16 };
+
+        let mut components = Vec::with_capacity(num_comp_idxs as usize);
+        for _ in 0..num_comp_idxs {
+            components.push(self.decode_component_idx()?);
+        }
+
+        Ok(EntityData { components })
     }
 }
 
@@ -131,5 +143,16 @@ impl<W: io::Write> encode::State<W> {
         }
 
         Ok(())
+    }
+
+    pub(crate) fn encode_entity_data(&mut self, data: &EntityData) -> io::Result<()> {
+        let len = data.components.len();
+        if len < 0xff {
+            self.write(&[len as u8])
+        } else {
+            debug_assert!(len < 0x10000, "entity cannot have >u16 components");
+            self.write(&[0xff])?;
+            self.write(&(len as u16).to_be_bytes())
+        }
     }
 }
