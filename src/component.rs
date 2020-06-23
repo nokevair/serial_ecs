@@ -52,7 +52,7 @@ impl ComponentArray {
         &self.scheme
     }
 
-    pub fn is_empty(&self) -> bool {
+    pub fn is_marker(&self) -> bool {
         self.scheme.is_empty()
     }
 

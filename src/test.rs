@@ -204,7 +204,7 @@ fn component_array_encoding() {
     // ok: properly formed header
     {
         let empty_array = decode_component_array(b"COMPONENT foo 31415 0\n").unwrap();
-        assert!(empty_array.is_empty());
+        assert!(empty_array.is_marker());
         assert_eq!(empty_array.name(), "foo");
         assert_eq!(empty_array.id(), 31415);
 
