@@ -1,3 +1,4 @@
+use std::convert::TryFrom;
 use std::io;
 
 use super::encode;
@@ -39,5 +40,95 @@ impl<R: io::Read> decode::State<R> {
             0xc0 ..= 0xff => ((b - 0xc0) as u16, 0),
         };
         Ok(ComponentIdx { id, idx })
+    }
+}
+
+enum IdScale {
+    U6(u8),
+    U8(u8),
+    U16(u16),
+}
+
+enum IdxScale {
+    Zero,
+    U8(u8),
+    U16(u16),
+    U24(u32),
+    U32(u32),
+}
+
+impl IdScale {
+    fn from_id(id: u16) -> Self {
+        if let Ok(id) = u8::try_from(id) {
+            if id < 0x40 {
+                Self::U6(id)
+            } else {
+                Self::U8(id)
+            }
+        } else {
+            Self::U16(id)
+        }
+    }
+}
+
+impl IdxScale {
+    fn from_idx(idx: u32) -> Self {
+        if let Ok(idx) = u8::try_from(idx) {
+            if idx == 0 {
+                Self::Zero
+            } else {
+                Self::U8(idx)
+            }
+        } else if let Ok(idx) = u16::try_from(idx) {
+            Self::U16(idx)
+        } else if idx < (1 << 24) {
+            Self::U24(idx)
+        } else {
+            Self::U32(idx)
+        }
+    }
+}
+
+impl<W: io::Write> encode::State<W> {
+    pub(crate) fn encode_component_idx(&mut self, comp_idx: ComponentIdx) -> io::Result<()> {
+        use IdScale as IdS;
+        use IdxScale as IdxS;
+
+        let id_s = IdS::from_id(comp_idx.id);
+        let idx_s = IdxS::from_idx(comp_idx.idx as u32);
+
+        /// Helper macro to call `self.write()` on the big-endian encoding of an integer.
+        macro_rules! wi {
+            (u24: $int:expr) => {{
+                let [h, a, b, c] = $int.to_be_bytes();
+                debug_assert_eq!(h, 0);
+                self.write(&[a, b, c])?
+            }};
+            ($int:expr) => {
+                self.write(&$int.to_be_bytes())?
+            }
+        }
+
+        match (id_s, idx_s) {
+            (IdS::U6(a), IdxS::Zero)   => { wi!(0xc0 + a) }
+            (IdS::U6(a), IdxS::U8(b))  => { wi!(a); wi!(b) }
+            (IdS::U6(a), IdxS::U16(b)) => { wi!(0x40 + a); wi!(b) }
+            (IdS::U6(a), IdxS::U24(b)) => { wi!(0x82u8); wi!(a); wi!(u24: b) }
+            (IdS::U6(a), IdxS::U32(b)) => { wi!(0x83u8); wi!(a); wi!(b) }
+
+            (IdS::U8(a), IdxS::Zero)   => { wi!(0x88u8); wi!(a) }
+            (IdS::U8(a), IdxS::U8(b))  => { wi!(0x80u8); wi!(a); wi!(b) }
+            (IdS::U8(a), IdxS::U16(b)) => { wi!(0x81u8); wi!(a); wi!(b) }
+            (IdS::U8(a), IdxS::U24(b)) => { wi!(0x82u8); wi!(a); wi!(u24: b) }
+            (IdS::U8(a), IdxS::U32(b)) => { wi!(0x83u8); wi!(a); wi!(b) }
+
+            (IdS::U16(a), IdxS::Zero)   => { wi!(0x89u8); wi!(a) }
+            (IdS::U16(a), IdxS::U8(b))  => { wi!(0x84u8); wi!(a); wi!(b) }
+            (IdS::U16(a), IdxS::U16(b)) => { wi!(0x85u8); wi!(a); wi!(b) }
+            (IdS::U16(a), IdxS::U24(b)) => { wi!(0x86u8); wi!(a); wi!(u24: b) }
+            (IdS::U16(a), IdxS::U32(b)) => { wi!(0x87u8); wi!(a); wi!(b) }
+        }
+
+        Ok(())
     }
 }
