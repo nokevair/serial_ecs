@@ -2,7 +2,7 @@ use super::*;
 
 use value::{Value, EntityId};
 use component::{ComponentArray, GlobalComponent};
-use entity::ComponentIdx;
+use entity::{ComponentIdx, EntityData};
 
 /// Return an arbitrary byte vector for testing purposes, as well as its length.
 fn get_bytes() -> (u8, Vec<u8>) {
@@ -185,7 +185,7 @@ fn encode_component_array(array: &ComponentArray) -> Vec<u8> {
 fn check_component_array_round_trip(b: &[u8]) {
     let array = decode_component_array(b).unwrap();
     let encoded = encode_component_array(&array);
-    assert_eq!(encoded.as_slice(), b);
+    assert_eq!(encoded, b);
 }
 
 #[test]
@@ -384,7 +384,7 @@ fn encode_component_idx(idx: ComponentIdx) -> Vec<u8> {
 fn check_component_idx_round_trip(b: &[u8], id: u16, idx: u32) {
     let comp_idx = decode_component_idx(b).unwrap();
     let encoded = encode_component_idx(comp_idx);
-    assert_eq!(encoded.as_slice(), b);
+    assert_eq!(encoded, b);
     assert_eq!(comp_idx.id, id);
     assert_eq!(comp_idx.idx, idx);
 }
@@ -437,4 +437,73 @@ fn component_idx_encoding() {
         check_component_idx_round_trip(&[0x87, id_a, id_b, id_a, id_b, id_a, id_b], id,
             u32::from_be_bytes([id_a, id_b, id_a, id_b]));
     }
+}
+
+fn decode_entity_data(b: &[u8]) -> Result<EntityData, decode::Error> {
+    decode::State::new(b).decode_entity_data()
+}
+
+fn encode_entity_data(data: &EntityData) -> Vec<u8> {
+    let mut encoded = Vec::new();
+    encode::State::new(&mut encoded).encode_entity_data(data).unwrap();
+    encoded
+}
+
+fn check_entity_data_round_trip(b: &[u8]) -> EntityData {
+    let data = decode_entity_data(b).unwrap();
+    let encoded = encode_entity_data(&data);
+    assert_eq!(encoded, b);
+    data
+}
+
+#[test]
+fn entity_data_encoding() {
+    // ok: correct number of component idxs
+    assert_eq!(check_entity_data_round_trip(b"\x00").components, Vec::new());
+    assert_eq!(check_entity_data_round_trip(b"\x01\x01\x01").components, vec![ComponentIdx {
+        id: 1,
+        idx: 1,
+    }]);
+
+    // error: too few component idxs
+    assert!(decode_entity_data(b"\x01").is_err());
+    assert!(decode_entity_data(b"\x02\x01\x01").is_err());
+
+    // ok: large number of component idxs
+    {
+        let mut encoded = Vec::new();
+        let mut components = Vec::new();
+
+        let (n, bytes) = get_bytes();
+        encoded.push(n);
+
+        for (i, id) in bytes.into_iter().enumerate() {
+            let idx = (i % 5) as u8;
+            match (id < 0x40, idx == 0) {
+                (false, false) => encoded.extend_from_slice(&[0x80, id, idx]),
+                (true,  false) => encoded.extend_from_slice(&[id, idx]),
+                (false, true ) => encoded.extend_from_slice(&[0x88, id]),
+                (true,  true ) => encoded.push(0xc0 + id),
+            };
+            components.push(ComponentIdx {
+                id: id as u16,
+                idx: idx as u32,
+            });
+        }
+
+        assert_eq!(check_entity_data_round_trip(&encoded).components, components);
+    }
+
+    // error: bad u16 component idx count
+    let mut encoded = Vec::new();
+    encoded.push(0xff);
+    for _ in 0..0xff {
+        encoded.push(0xc0);
+    }
+    assert!(decode_entity_data(&encoded).is_err());
+    
+    // ok: correct u16 component idx count
+    encoded.insert(1, 0xff);
+    encoded.insert(1, 0x00);
+    check_entity_data_round_trip(&encoded);
 }

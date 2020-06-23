@@ -4,7 +4,7 @@ use std::io;
 use super::encode;
 use super::decode;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) struct ComponentIdx {
     // identifies the type of component
     pub(crate) id: u16,
@@ -13,7 +13,7 @@ pub(crate) struct ComponentIdx {
 }
 
 pub(crate) struct EntityData {
-    components: Vec<ComponentIdx>,
+    pub(crate) components: Vec<ComponentIdx>,
 }
 
 impl<R: io::Read> decode::State<R> {
@@ -148,11 +148,17 @@ impl<W: io::Write> encode::State<W> {
     pub(crate) fn encode_entity_data(&mut self, data: &EntityData) -> io::Result<()> {
         let len = data.components.len();
         if len < 0xff {
-            self.write(&[len as u8])
+            self.write(&[len as u8])?
         } else {
             debug_assert!(len < 0x10000, "entity cannot have >u16 components");
             self.write(&[0xff])?;
-            self.write(&(len as u16).to_be_bytes())
+            self.write(&(len as u16).to_be_bytes())?
         }
+
+        for &comp_idx in &data.components {
+            self.encode_component_idx(comp_idx)?;
+        }
+
+        Ok(())
     }
 }
