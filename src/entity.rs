@@ -8,7 +8,7 @@ pub(crate) struct ComponentIdx {
     // identifies the type of component
     id: u16,
     // the index of the component itself
-    idx: usize,
+    idx: u32,
 }
 
 struct EntityData {
@@ -18,17 +18,17 @@ struct EntityData {
 impl<R: io::Read> decode::State<R> {
     pub(crate) fn decode_component_idx(&mut self) -> Result<ComponentIdx, decode::Error> {
         let b = self.next("component index")?;
-        let (id, idx): (u16, usize) = match b {
-            0x00 ..= 0x3f => (b as u16, self.decode_u8()? as usize),
-            0x40 ..= 0x7f => ((b - 0x40) as u16, self.decode_u16()? as usize),
-            0x80 => (self.decode_u8()? as u16, self.decode_u8()? as usize),
-            0x81 => (self.decode_u8()? as u16, self.decode_u16()? as usize),
-            0x82 => (self.decode_u8()? as u16, self.decode_u24()? as usize),
-            0x83 => (self.decode_u8()? as u16, self.decode_u32()? as usize),
-            0x84 => (self.decode_u16()?, self.decode_u8()? as usize),
-            0x85 => (self.decode_u16()?, self.decode_u16()? as usize),
-            0x86 => (self.decode_u16()?, self.decode_u24()? as usize),
-            0x87 => (self.decode_u16()?, self.decode_u32()? as usize),
+        let (id, idx) = match b {
+            0x00 ..= 0x3f => (b as u16, self.decode_u8()? as u32),
+            0x40 ..= 0x7f => ((b - 0x40) as u16, self.decode_u16()? as u32),
+            0x80 => (self.decode_u8()? as u16, self.decode_u8()? as u32),
+            0x81 => (self.decode_u8()? as u16, self.decode_u16()? as u32),
+            0x82 => (self.decode_u8()? as u16, self.decode_u24()? as u32),
+            0x83 => (self.decode_u8()? as u16, self.decode_u32()?),
+            0x84 => (self.decode_u16()?, self.decode_u8()? as u32),
+            0x85 => (self.decode_u16()?, self.decode_u16()? as u32),
+            0x86 => (self.decode_u16()?, self.decode_u24()? as u32),
+            0x87 => (self.decode_u16()?, self.decode_u32()?),
             0x88 => (self.decode_u8()? as u16, 0),
             0x89 => (self.decode_u16()? as u16, 0),
 
