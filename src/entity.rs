@@ -17,6 +17,10 @@ pub(crate) struct EntityData {
     pub(crate) components: Vec<ComponentIdx>,
 }
 
+pub struct EntityArray {
+    entries: Vec<EntityData>,
+}
+
 impl<R: io::Read> decode::State<R> {
     pub(crate) fn decode_component_idx(&mut self) -> Result<ComponentIdx, decode::Error> {
         let b = self.next("component index")?;
