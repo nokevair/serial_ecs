@@ -21,6 +21,26 @@ pub(crate) struct EntityArray {
     pub(crate) entries: Vec<EntityData>,
 }
 
+impl EntityArray {
+    // Compute the packed indices of the entries: this vector
+    // contains `None` at indices corresponding to deleted
+    // entities, and contains `Some(i)` everywhere else,
+    // with the `i` values forming an increasing sequence.
+    pub fn packed_idxs(&self) -> Vec<Option<u32>> {
+        let mut idxs = Vec::with_capacity(self.entries.len());
+        let mut i = 0;
+        for entry in &self.entries {
+            if entry.is_deleted {
+                idxs.push(None);
+            } else {
+                idxs.push(Some(i));
+                i += 1;
+            }
+        }
+        idxs
+    }
+}
+
 impl<R: io::Read> decode::State<R> {
     pub(crate) fn decode_component_idx(&mut self) -> Result<ComponentIdx, decode::Error> {
         let b = self.next("component index")?;
