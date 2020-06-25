@@ -13,6 +13,7 @@ pub(crate) struct ComponentIdx {
 }
 
 pub(crate) struct EntityData {
+    is_deleted: bool,
     pub(crate) components: Vec<ComponentIdx>,
 }
 
@@ -52,7 +53,7 @@ impl<R: io::Read> decode::State<R> {
             components.push(self.decode_component_idx()?);
         }
 
-        Ok(EntityData { components })
+        Ok(EntityData { is_deleted: false, components })
     }
 }
 
