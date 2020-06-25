@@ -178,3 +178,16 @@ impl<W: io::Write> encode::State<W> {
         }
     }
 }
+
+impl Value {
+    /// Recursively apply a function to transform all `EntityID`
+    /// values that are contained in this.
+    pub(crate) fn mutate_entity_ids<F: FnMut(&mut EntityId)>(&mut self, f: &mut F) {
+        match *self {
+            Self::EntityId(ref mut id) => f(id),
+            Self::Maybe(Some(ref mut v)) => v.mutate_entity_ids(f),
+            Self::Array(ref mut vs) => for v in vs { v.mutate_entity_ids(f) }
+            _ => {}
+        }
+    }
+}
