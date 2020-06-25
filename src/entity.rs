@@ -13,12 +13,12 @@ pub(crate) struct ComponentIdx {
 }
 
 pub(crate) struct EntityData {
-    is_deleted: bool,
+    pub(crate) is_deleted: bool,
     pub(crate) components: Vec<ComponentIdx>,
 }
 
-pub struct EntityArray {
-    entries: Vec<EntityData>,
+pub(crate) struct EntityArray {
+    pub(crate) entries: Vec<EntityData>,
 }
 
 impl<R: io::Read> decode::State<R> {
@@ -58,6 +58,40 @@ impl<R: io::Read> decode::State<R> {
         }
 
         Ok(EntityData { is_deleted: false, components })
+    }
+
+    pub(crate) fn decode_entity_array(&mut self) -> Result<EntityArray, decode::Error> {
+        let mut header = self.decode_header_line("entity array header")?;
+
+        if header.len() != 2 {
+            return Err(self.err_unexpected(
+                "entity array header with two fields",
+                format!("{} fields", header.len())
+            ));
+        }
+
+        let signature = &header[0];
+        if signature != "ENTITIES" {
+            return Err(self.err_unexpected(
+                "entity array signature (ENTITIES)",
+                format!("invalid signature: {:?}", signature),
+            ));
+        }
+
+        let num_entities = match header[1].parse::<u32>() {
+            Ok(n) => n,
+            Err(_) => return Err(self.err_unexpected(
+                "32-bit entity count",
+                "invalid entity count",
+            )),
+        };
+
+        let mut entries = Vec::with_capacity(num_entities as usize);
+        for _ in 0..num_entities {
+            entries.push(self.decode_entity_data()?);
+        }
+
+        Ok(EntityArray { entries })
     }
 }
 
