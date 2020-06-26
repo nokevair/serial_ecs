@@ -178,7 +178,7 @@ fn decode_component_array(b: &[u8]) -> Result<ComponentArray, decode::Error> {
 
 fn encode_component_array(array: &ComponentArray) -> Vec<u8> {
     let mut encoded = Vec::new();
-    encode::State::new(&mut encoded).encode_component_array(array).unwrap();
+    encode::State::new(&mut encoded).encode_component_array(array, |_| {}).unwrap();
     encoded
 }
 
@@ -304,7 +304,7 @@ fn decode_global_component(b: &[u8]) -> Result<GlobalComponent, decode::Error> {
 
 fn encode_global_component(global: &GlobalComponent) -> Vec<u8> {
     let mut encoded = Vec::new();
-    encode::State::new(&mut encoded).encode_global_component(global).unwrap();
+    encode::State::new(&mut encoded).encode_global_component(global, |_| {}).unwrap();
     encoded
 }
 
