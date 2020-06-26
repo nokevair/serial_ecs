@@ -238,11 +238,10 @@ impl<R: io::Read> decode::State<R> {
 
 impl<W: io::Write> encode::State<W> {
     pub fn encode_component_array(&mut self, array: &ComponentArray) -> io::Result<()> {
-        self.write(b"COMPONENT ")?;
         let len = array.values.len()
             .checked_div(array.scheme.len())
             .unwrap_or(0);
-        self.write(format!("{} {} {}", array.name, array.id, len).as_bytes())?;
+        self.write_fmt(format_args!("COMPONENT {} {} {}", array.name, array.id, len))?;
         for field_name in &array.scheme {
             self.write(b" ")?;
             self.write(field_name.as_bytes())?;

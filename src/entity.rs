@@ -227,7 +227,7 @@ impl<W: io::Write> encode::State<W> {
     // mutate_entity_ids()` to correctly replaces the idxs with their packed versions.
     pub(crate) fn encode_entity_array(&mut self, array: &EntityArray) -> io::Result<()> {
         let len = array.entries.iter().filter(|e| !e.is_deleted).count();
-        self.write(format!("ENTITIES {}\n", len).as_bytes())?;
+        self.write_fmt(format_args!("ENTITIES {}\n", len))?;
         for entry in &array.entries {
             if entry.is_deleted {
                 continue;
