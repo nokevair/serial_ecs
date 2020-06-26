@@ -16,7 +16,7 @@ fn decode_value(b: &[u8]) -> Result<Value, decode::Error> {
 
 fn encode_value(val: &Value) -> Vec<u8> {
     let mut encoded = Vec::new();
-    encode::State::new(&mut encoded).encode_value(&val).unwrap();
+    encode::State::new(&mut encoded).encode_value(&val, &mut |_| {}).unwrap();
     encoded
 }
 

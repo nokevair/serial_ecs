@@ -3,7 +3,7 @@ use std::io;
 use super::encode;
 use super::decode;
 
-use super::value::Value;
+use super::value::{Value, EntityId};
 
 // Find the first duplicate in `vals` using an `O(n^2)` algorithm.
 // This should probably only be used on small arrays.
@@ -237,7 +237,11 @@ impl<R: io::Read> decode::State<R> {
 }
 
 impl<W: io::Write> encode::State<W> {
-    pub fn encode_component_array(&mut self, array: &ComponentArray) -> io::Result<()> {
+    pub fn encode_component_array<ET: FnMut(&mut EntityId)>(
+        &mut self,
+        array: &ComponentArray,
+        mut e_id_transform: ET,
+    ) -> io::Result<()> {
         let len = array.values.len()
             .checked_div(array.scheme.len())
             .unwrap_or(0);
@@ -248,12 +252,16 @@ impl<W: io::Write> encode::State<W> {
         }
         self.write(b"\n")?;
         for value in &array.values {
-            self.encode_value(value)?;
+            self.encode_value(value, &mut e_id_transform)?;
         }
         Ok(())
     }
 
-    pub fn encode_global_component(&mut self, global: &GlobalComponent) -> io::Result<()> {
+    pub fn encode_global_component<ET: FnMut(&mut EntityId)>(
+        &mut self,
+        global: &GlobalComponent,
+        mut e_id_transform: ET,
+    ) -> io::Result<()> {
         self.write(b"GLOBAL")?;
         for field_name in &global.scheme {
             self.write(b" ")?;
@@ -261,7 +269,7 @@ impl<W: io::Write> encode::State<W> {
         }
         self.write(b"\n")?;
         for value in &global.values {
-            self.encode_value(value)?;
+            self.encode_value(value, &mut e_id_transform)?;
         }
         Ok(())
     }

@@ -221,10 +221,11 @@ impl<W: io::Write> encode::State<W> {
         Ok(())
     }
 
-    // WARNING: when calling this function, keep in mind that it skips deleted entities
-    // when serializing, so if there are any components that contain `EntityId`s that refer
-    // to this array, you need to remember to transform the component data using `Value::
-    // mutate_entity_ids()` to correctly replaces the idxs with their packed versions.
+    // WARNING: when calling this function, keep in mind that it skips deleted
+    // entities when serializing, so if there are any components that contain
+    // `EntityId`s that refer to this array, when you serialize them, you need
+    // to remember to pass an `e_id_transform` closure that correctly replaces
+    // the entity IDs with their packed versions.
     pub(crate) fn encode_entity_array(&mut self, array: &EntityArray) -> io::Result<()> {
         let filtered = array.entries.iter().filter(|e| !e.is_deleted);
         let len = filtered.clone().count();
