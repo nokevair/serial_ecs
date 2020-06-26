@@ -226,13 +226,12 @@ impl<W: io::Write> encode::State<W> {
     // to this array, you need to remember to transform the component data using `Value::
     // mutate_entity_ids()` to correctly replaces the idxs with their packed versions.
     pub(crate) fn encode_entity_array(&mut self, array: &EntityArray) -> io::Result<()> {
-        let len = array.entries.iter().filter(|e| !e.is_deleted).count();
+        let filtered = array.entries.iter().filter(|e| !e.is_deleted);
+        let len = filtered.clone().count();
         self.write_fmt(format_args!("ENTITIES {}\n", len))?;
-        for entry in &array.entries {
-            if entry.is_deleted {
-                continue;
-            }
-            self.encode_entity_data(entry);
+        
+        for entry in filtered {
+            self.encode_entity_data(entry)?;
         }
         Ok(())
     }
