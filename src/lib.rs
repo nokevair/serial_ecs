@@ -4,8 +4,12 @@ mod encode;
 mod error;
 
 pub mod value;
-pub mod component;
-pub mod entity;
+
+mod component;
+mod entity;
+mod world;
+
+pub use world::World;
 
 #[cfg(test)]
 mod test;

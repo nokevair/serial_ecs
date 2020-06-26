@@ -84,6 +84,13 @@ impl ComponentArray {
 }
 
 impl GlobalComponent {
+    pub fn empty() -> Self {
+        Self {
+            scheme: Vec::new(),
+            values: Vec::new(),
+        }
+    }
+
     pub fn scheme(&self) -> &[String] {
         &self.scheme
     }

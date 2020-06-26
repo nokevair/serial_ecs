@@ -22,6 +22,12 @@ pub(crate) struct EntityArray {
 }
 
 impl EntityArray {
+    pub fn empty() -> Self {
+        Self {
+            entries: Vec::new(),
+        }
+    }
+
     // Compute the packed indices of the entries: this vector
     // contains `None` at indices corresponding to deleted
     // entities, and contains `Some(i)` everywhere else,
