@@ -4,8 +4,8 @@ mod encode;
 pub mod error;
 
 pub mod value;
+pub mod component;
 
-mod component;
 mod entity;
 mod world;
 
