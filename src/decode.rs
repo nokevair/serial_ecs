@@ -1,7 +1,6 @@
 use std::ascii;
 use std::borrow::Cow;
 use std::io::{self, Read};
-use std::iter::Peekable;
 
 #[derive(Debug)]
 pub enum Error {
@@ -21,7 +20,7 @@ impl From<io::Error> for Error {
 
 pub struct State<R: Read> {
     idx: usize,
-    bytes: Peekable<io::Bytes<R>>,
+    bytes: io::Bytes<R>,
 }
 
 macro_rules! declare_decode_primitive {
@@ -51,7 +50,7 @@ impl<R: Read> State<R> {
     pub fn new(reader: R) -> Self {
         Self {
             idx: 0,
-            bytes: reader.bytes().peekable(),
+            bytes: reader.bytes(),
         }
     }
 
