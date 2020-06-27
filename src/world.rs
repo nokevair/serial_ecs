@@ -5,6 +5,8 @@ use std::io;
 
 use super::decode;
 
+use super::error;
+
 use super::component::{ComponentArray, GlobalComponent};
 use super::entity::EntityArray;
 
@@ -21,6 +23,11 @@ impl World {
             global: GlobalComponent::empty(),
             entities: EntityArray::empty(),
         }
+    }
+
+    pub fn from_reader<R: io::Read>(reader: R) -> Result<Self, error::DecodeError> {
+        decode::State::new(reader)
+            .decode_world()
     }
 }
 
