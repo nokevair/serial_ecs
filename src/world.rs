@@ -73,8 +73,8 @@ impl<R: io::Read> decode::State<R> {
             ))
         };
         
-        let mut component_arrays = VecMap::with_capacity(max_component_id as usize);
-        let mut component_names = HashSet::with_capacity(max_component_id as usize);
+        let mut component_arrays = VecMap::with_capacity(max_component_id as usize + 1);
+        let mut component_names = HashSet::with_capacity(num_component_arrays as usize);
 
         // Read a sequence of component arrays
         for _ in 0..num_component_arrays {
