@@ -2,7 +2,7 @@ use super::*;
 
 use value::{Value, EntityId};
 use component::{ComponentArray, GlobalComponent};
-use entity::{ComponentIdx, EntityData};
+use entity::{ComponentIdx, EntityData, EntityArray};
 
 /// Return an arbitrary byte vector for testing purposes, as well as its length.
 fn get_bytes() -> (u8, Vec<u8>) {
@@ -506,4 +506,74 @@ fn entity_data_encoding() {
     encoded.insert(1, 0xff);
     encoded.insert(1, 0x00);
     check_entity_data_round_trip(&encoded);
+}
+
+fn decode_entity_array(b: &[u8]) -> Result<EntityArray, decode::Error> {
+    decode::State::new(b).decode_entity_array()
+}
+
+fn encode_entity_array(array: &EntityArray) -> Vec<u8> {
+    let mut encoded = Vec::new();
+    encode::State::new(&mut encoded).encode_entity_array(array).unwrap();
+    encoded
+}
+
+fn check_entity_array_round_trip(b: &[u8]) -> EntityArray {
+    let array = decode_entity_array(b).unwrap();
+    let encoded = encode_entity_array(&array);
+    assert_eq!(encoded, b);
+    array
+}
+
+#[test]
+fn entity_array_encoding() {
+    // error: malformed header
+    assert!(decode_entity_array(b"").is_err());
+    assert!(decode_entity_array(b"ENTITIES").is_err());
+    assert!(decode_entity_array(b"ENTITIES foo").is_err());
+    assert!(decode_entity_array(b"ENTITIES 0").is_err());
+
+    // ok: properly formed header
+    {
+        let array = check_entity_array_round_trip(b"ENTITIES 0\n");
+        assert!(array.entries.is_empty());
+    }
+
+    // error: too few entities
+    assert!(decode_entity_array(b"ENTITIES 1\n").is_err());
+
+    // ok: correct number of entities
+    {
+        let array = check_entity_array_round_trip(b"ENTITIES 5\n\x00\x00\x00\x00\x00");
+
+        assert_eq!(array.entries.len(), 5);
+        for entity_data in &array.entries {
+            assert_eq!(entity_data.components.len(), 0);
+        }
+    }
+
+    // ok: entities with components
+    {
+        let array = check_entity_array_round_trip(
+            b"ENTITIES 4\n\
+              \x00\
+              \x01\x01\x02\
+              \x01\x02\x01\
+              \x02\x01\x01\x02\x02"
+        );
+
+        assert_eq!(array.entries.len(), 4);
+        
+        assert_eq!(array.entries[0].components, vec![]);
+        assert_eq!(array.entries[1].components, vec![
+            ComponentIdx { id: 1, idx: 2 },
+        ]);
+        assert_eq!(array.entries[2].components, vec![
+            ComponentIdx { id: 2, idx: 1 },
+        ]);
+        assert_eq!(array.entries[3].components, vec![
+            ComponentIdx { id: 1, idx: 1 },
+            ComponentIdx { id: 2, idx: 2 },
+        ]);
+    }
 }
