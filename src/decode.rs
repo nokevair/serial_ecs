@@ -82,6 +82,18 @@ impl<R: Read> State<R> {
         }
     }
 
+    pub fn expect_newline(&mut self) -> Result<(), Error> {
+        let byte = self.next("newline")?;
+        if byte == b'\n' {
+            Ok(())
+        } else {
+            Err(self.err_unexpected(
+                "newline",
+                format!("non-newline byte: {}", ascii::escape_default(byte)),
+            ))
+        }
+    }
+
     declare_decode_primitive!(decode_u8, u8, "8-bit uint", a);
     declare_decode_primitive!(decode_i8, i8, "8-bit int", a);
 
