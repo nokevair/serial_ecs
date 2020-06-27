@@ -1,7 +1,7 @@
 mod decode;
 mod encode;
 
-mod error;
+pub mod error;
 
 pub mod value;
 

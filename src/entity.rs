@@ -87,7 +87,7 @@ impl<R: io::Read> decode::State<R> {
     }
 
     pub(crate) fn decode_entity_array(&mut self) -> Result<EntityArray, decode::Error> {
-        let mut header = self.decode_header_line("entity array header")?;
+        let header = self.decode_header_line("entity array header")?;
 
         if header.len() != 2 {
             return Err(self.err_unexpected(

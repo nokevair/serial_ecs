@@ -40,7 +40,7 @@ impl World {
 
 impl<R: io::Read> decode::State<R> {
     pub fn decode_world(&mut self) -> Result<World, decode::Error> {
-        let mut header = self.decode_header_line("world state header")?;
+        let header = self.decode_header_line("world state header")?;
 
         if header.len() != 3 {
             return Err(self.err_unexpected(
