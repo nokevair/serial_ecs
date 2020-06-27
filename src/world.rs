@@ -4,8 +4,10 @@ use std::collections::HashSet;
 use std::io;
 
 use super::decode;
+use super::encode;
 
 use super::error;
+use super::value::EntityId;
 
 use super::component::{ComponentArray, GlobalComponent};
 use super::entity::EntityArray;
@@ -106,5 +108,48 @@ impl<R: io::Read> decode::State<R> {
         let entities = self.decode_entity_array()?;
 
         Ok(World { components: component_arrays, global, entities })
+    }
+}
+
+impl<W: io::Write> encode::State<W> {
+    pub fn encode_world(&mut self, world: &World) -> io::Result<()> {
+        let num_component_arrays = world.components.len();
+        let max_component_arrays = world.components.iter()
+            .next_back()
+            .map(|(i, _)| i)
+            .unwrap_or(0);
+        
+        self.write_fmt(format_args!(
+            "WORLD {} {}\n",
+            num_component_arrays,
+            max_component_arrays,
+        ))?;
+
+        let packed_idxs = world.entities.packed_idxs();
+        let transform_id = |id: &mut EntityId| {
+            if let EntityId::Idx(ref mut idx) = id {
+                if let Some(&Some(new_idx)) = packed_idxs.get(*idx as usize) {
+                    *idx = new_idx;
+                } else {
+                    *id = EntityId::Invalid;
+                }
+            }
+        };
+
+        // Encode the component arrays, but transform any `EntityId`s they contain
+        // to reflect the fact that deleted entities are not serialzed.
+        for component_array in world.components.values() {
+            self.encode_component_array(component_array, transform_id)?;
+            self.write(b"\n")?;
+        }
+
+        // Encode the global component, applying the same transformation.
+        self.encode_global_component(&world.global, transform_id)?;
+        self.write(b"\n")?;
+
+        // Encode the entity array.
+        self.encode_entity_array(&world.entities)?;
+
+        Ok(())
     }
 }
