@@ -31,6 +31,11 @@ impl World {
         decode::State::new(reader)
             .decode_world()
     }
+
+    pub fn to_writer<W: io::Write>(&self, writer: W) -> io::Result<()> {
+        encode::State::new(writer)
+            .encode_world(self)
+    }
 }
 
 impl<R: io::Read> decode::State<R> {
