@@ -140,6 +140,13 @@ impl<'a> ComponentMut<'a> {
     pub fn field_mut(&'a mut self, name: &str) -> Option<&'a mut Value> {
         Some(&mut self.values[self.field_idx(name)?])
     }
+
+    pub fn to_ref(&'a self) -> ComponentRef<'a> {
+        ComponentRef {
+            scheme: &self.scheme,
+            values: &self.values,
+        }
+    }
 }
 
 impl<R: io::Read> decode::State<R> {
