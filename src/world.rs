@@ -6,7 +6,6 @@ use std::io;
 use super::decode;
 use super::encode;
 
-use super::error;
 use super::value::EntityId;
 
 use super::component::{ComponentArray, GlobalComponent};
@@ -16,6 +15,16 @@ pub struct WorldData {
     components: VecMap<ComponentArray>,
     global: GlobalComponent,
     entities: EntityArray,
+}
+
+impl Default for WorldData {
+    fn default() -> Self {
+        Self {
+            components: VecMap::new(),
+            global: GlobalComponent::empty(),
+            entities: EntityArray::empty(),
+        }
+    }
 }
 
 impl<R: io::Read> decode::State<R> {
