@@ -9,7 +9,7 @@ pub mod component;
 mod entity;
 mod world;
 
-pub use world::World;
+pub use world::WorldData;
 
 #[cfg(test)]
 mod test;

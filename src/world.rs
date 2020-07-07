@@ -12,34 +12,14 @@ use super::value::EntityId;
 use super::component::{ComponentArray, GlobalComponent};
 use super::entity::EntityArray;
 
-pub struct World {
+pub struct WorldData {
     components: VecMap<ComponentArray>,
     global: GlobalComponent,
     entities: EntityArray,
 }
 
-impl World {
-    pub fn empty() -> Self {
-        Self {
-            components: VecMap::new(),
-            global: GlobalComponent::empty(),
-            entities: EntityArray::empty(),
-        }
-    }
-
-    pub fn from_reader<R: io::Read>(reader: R) -> Result<Self, error::DecodeError> {
-        decode::State::new(reader)
-            .decode_world()
-    }
-
-    pub fn to_writer<W: io::Write>(&self, writer: W) -> io::Result<()> {
-        encode::State::new(writer)
-            .encode_world(self)
-    }
-}
-
 impl<R: io::Read> decode::State<R> {
-    pub fn decode_world(&mut self) -> Result<World, decode::Error> {
+    pub fn decode_world(&mut self) -> Result<WorldData, decode::Error> {
         let header = self.decode_header_line("world state header")?;
 
         if header.len() != 3 {
@@ -112,12 +92,12 @@ impl<R: io::Read> decode::State<R> {
 
         let entities = self.decode_entity_array()?;
 
-        Ok(World { components: component_arrays, global, entities })
+        Ok(WorldData { components: component_arrays, global, entities })
     }
 }
 
 impl<W: io::Write> encode::State<W> {
-    pub fn encode_world(&mut self, world: &World) -> io::Result<()> {
+    pub fn encode_world(&mut self, world: &WorldData) -> io::Result<()> {
         let num_component_arrays = world.components.len();
         let max_component_arrays = world.components.iter()
             .next_back()
