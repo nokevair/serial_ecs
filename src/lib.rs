@@ -10,6 +10,7 @@ pub mod error;
 pub mod value;
 pub mod component;
 
+pub use world::WorldData as WorldContext;
 pub use lua::World;
 
 #[cfg(test)]

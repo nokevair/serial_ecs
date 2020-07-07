@@ -6,24 +6,24 @@ use std::sync::{Arc, RwLock, PoisonError};
 use crate::decode;
 use crate::encode;
 use crate::error;
-use crate::world::WorldData;
+use crate::WorldContext;
 
 #[derive(Default, Clone)]
-struct WorldDataRef(Arc<RwLock<WorldData>>);
+struct ContextRef(Arc<RwLock<WorldContext>>);
 
 pub struct World {
     lua: Lua,
-    data_ref_key: RegistryKey,
+    ctx_ref_key: RegistryKey,
 
-    data: WorldDataRef,
+    ctx_ref: ContextRef,
 }
 
-impl rlua::UserData for WorldDataRef {}
+impl rlua::UserData for ContextRef {}
 
 impl World {
-    fn register_data_ref(
+    fn register_ctx_ref(
         lua: &Lua,
-        data_ref: WorldDataRef
+        data_ref: ContextRef,
     ) -> rlua::Result<RegistryKey> {
         lua.context(|ctx|
             ctx.create_registry_value(data_ref))
@@ -34,13 +34,13 @@ impl World {
     }
 
     pub fn with_lua(lua: Lua) -> Self {
-        let data = WorldDataRef::default();
-        let data_ref_key = Self::register_data_ref(&lua, data.clone())
+        let ctx_ref = ContextRef::default();
+        let ctx_ref_key = Self::register_ctx_ref(&lua, ctx_ref.clone())
             .expect("failed to add world data to Lua registry");
         Self {
             lua,
-            data_ref_key,
-            data,
+            ctx_ref_key,
+            ctx_ref,
         }
     }
 
@@ -52,16 +52,16 @@ impl World {
         reader: R,
         lua: Lua
     ) -> Result<Self, error::DecodeError> {
-        let data = decode::State::new(reader).decode_world()?;
-        let data = WorldDataRef(Arc::new(RwLock::new(data)));
-        let data_ref_key = Self::register_data_ref(&lua, data.clone())
+        let ctx = decode::State::new(reader).decode_world()?;
+        let ctx_ref = ContextRef(Arc::new(RwLock::new(ctx)));
+        let ctx_ref_key = Self::register_ctx_ref(&lua, ctx_ref.clone())
             .expect("failed to add world data to Lua registry");
         
-        Ok(Self { lua, data_ref_key, data })
+        Ok(Self { lua, ctx_ref_key, ctx_ref })
     }
 
     pub fn to_writer<W: io::Write>(&self, writer: W) -> io::Result<()> {
-        let world = self.data.0.read().unwrap_or_else(PoisonError::into_inner);
+        let world = self.ctx.0.read().unwrap_or_else(PoisonError::into_inner);
         encode::State::new(writer)
             .encode_world(&world)
     }
