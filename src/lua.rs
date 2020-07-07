@@ -25,9 +25,8 @@ impl World {
         lua: &Lua,
         data_ref: WorldDataRef
     ) -> rlua::Result<RegistryKey> {
-        lua.context(|ctx| {
-            ctx.create_registry_value(data_ref)
-        })
+        lua.context(|ctx|
+            ctx.create_registry_value(data_ref))
     }
 
     pub fn new() -> Self {
