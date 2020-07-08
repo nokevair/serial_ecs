@@ -1,5 +1,6 @@
 use rlua::{Lua, RegistryKey};
 
+use std::collections::HashMap;
 use std::io;
 use std::sync::{Arc, RwLock, PoisonError};
 
@@ -8,25 +9,41 @@ use crate::encode;
 use crate::error;
 use crate::WorldContext;
 
+mod script;
+use script::{System, Query};
+
 #[derive(Default, Clone)]
 struct ContextRef(Arc<RwLock<WorldContext>>);
 
-pub struct World {
+pub struct World<ID, Q> {
     lua: Lua,
     ctx_ref_key: RegistryKey,
+
+    systems: HashMap<ID, System>,
+    queries: HashMap<ID, Query<Q>>,
 
     ctx_ref: ContextRef,
 }
 
 impl rlua::UserData for ContextRef {}
 
-impl World {
-    fn register_ctx_ref(
-        lua: &Lua,
-        data_ref: ContextRef,
-    ) -> rlua::Result<RegistryKey> {
-        lua.context(|ctx|
-            ctx.create_registry_value(data_ref))
+impl<ID, Q> World<ID, Q> {
+    fn from_ctx_ref_with_lua(
+        ctx_ref: ContextRef,
+        lua: Lua
+    ) -> Self {
+        let ctx_ref_key = lua.context(|ctx|
+            ctx.create_registry_value(ctx_ref.clone())
+                .expect("failed to add world data to Lua registry"));
+        Self {
+            lua,
+            ctx_ref_key,
+
+            systems: HashMap::new(),
+            queries: HashMap::new(),
+
+            ctx_ref,
+        }
     }
 
     pub fn new() -> Self {
@@ -34,14 +51,7 @@ impl World {
     }
 
     pub fn with_lua(lua: Lua) -> Self {
-        let ctx_ref = ContextRef::default();
-        let ctx_ref_key = Self::register_ctx_ref(&lua, ctx_ref.clone())
-            .expect("failed to add world data to Lua registry");
-        Self {
-            lua,
-            ctx_ref_key,
-            ctx_ref,
-        }
+        Self::from_ctx_ref_with_lua(ContextRef::default(), lua)
     }
 
     pub fn from_reader<R: io::Read>(reader: R) -> Result<Self, error::DecodeError> {
@@ -54,10 +64,8 @@ impl World {
     ) -> Result<Self, error::DecodeError> {
         let ctx = decode::State::new(reader).decode_world()?;
         let ctx_ref = ContextRef(Arc::new(RwLock::new(ctx)));
-        let ctx_ref_key = Self::register_ctx_ref(&lua, ctx_ref.clone())
-            .expect("failed to add world data to Lua registry");
         
-        Ok(Self { lua, ctx_ref_key, ctx_ref })
+        Ok(Self::from_ctx_ref_with_lua(ctx_ref, lua))
     }
 
     pub fn to_writer<W: io::Write>(&self, writer: W) -> io::Result<()> {
