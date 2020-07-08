@@ -61,7 +61,7 @@ impl World {
     }
 
     pub fn to_writer<W: io::Write>(&self, writer: W) -> io::Result<()> {
-        let world = self.ctx.0.read().unwrap_or_else(PoisonError::into_inner);
+        let world = self.ctx_ref.0.read().unwrap_or_else(PoisonError::into_inner);
         encode::State::new(writer)
             .encode_world(&world)
     }
