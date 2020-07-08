@@ -2,7 +2,7 @@ use rlua::{Lua, RegistryKey};
 
 use std::collections::HashMap;
 use std::io;
-use std::sync::{Arc, RwLock, PoisonError};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, PoisonError};
 
 use crate::decode;
 use crate::encode;
@@ -11,6 +11,8 @@ use crate::WorldContext;
 
 mod script;
 use script::{System, Query};
+
+pub use script::ScriptType;
 
 #[derive(Default, Clone)]
 struct ContextRef(Arc<RwLock<WorldContext>>);
@@ -23,6 +25,16 @@ pub struct World<ID, Q> {
     queries: HashMap<ID, Query<Q>>,
 
     ctx_ref: ContextRef,
+}
+
+impl ContextRef {
+    fn read(&self) -> RwLockReadGuard<WorldContext> {
+        self.0.read().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn write(&self) -> RwLockWriteGuard<WorldContext> {
+        self.0.write().unwrap_or_else(PoisonError::into_inner)
+    }
 }
 
 impl rlua::UserData for ContextRef {}
@@ -69,7 +81,7 @@ impl<ID, Q> World<ID, Q> {
     }
 
     pub fn to_writer<W: io::Write>(&self, writer: W) -> io::Result<()> {
-        let world = self.ctx_ref.0.read().unwrap_or_else(PoisonError::into_inner);
+        let world = self.ctx_ref.read();
         encode::State::new(writer)
             .encode_world(&world)
     }
