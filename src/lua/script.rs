@@ -164,4 +164,33 @@ impl<ID, Q> World<ID, Q> where ID: Hash + Eq {
         self.systems.clear();
         self.lua.context(|ctx| ctx.expire_registry_values());
     }
+
+    pub fn run_lua<R>(
+        &self,
+        code: &[u8],
+        post_process: impl FnOnce(rlua::Value) -> R,
+    ) -> rlua::Result<R> {
+        self.lua.context(|ctx| {
+            let run_fn: rlua::Function = ctx.load(code).set_name("unnamed script")?.eval()?;
+            let ctx_ref: rlua::Value = ctx.registry_value(&self.ctx_ref_key)?;
+            let result: rlua::Value = run_fn.call(ctx_ref)?;
+            Ok(post_process(result))
+        })
+    }
+
+    pub fn context<R>(
+        &self,
+        f: impl FnOnce(&WorldContext) -> R,
+    ) -> R {
+        let context = self.ctx_ref.read();
+        f(&context)
+    }
+
+    pub fn context_mut<R>(
+        &self,
+        f: impl FnOnce(&mut WorldContext) -> R,
+    ) -> R {
+        let mut context = self.ctx_ref.write();
+        f(&mut context)
+    }
 }
