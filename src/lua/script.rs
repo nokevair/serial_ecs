@@ -40,8 +40,17 @@ impl ScriptType {
 
 impl<ID, Q> World<ID, Q> where ID: Hash + Eq {
     pub fn register_lua_system(&mut self, id: ID, code: &[u8]) -> rlua::Result<ScriptType> {
+        self.register_named_lua_system(id, b"unnamed system", code)
+    }
+
+    pub fn register_named_lua_system(
+        &mut self,
+        id: ID,
+        name: &[u8],
+        code: &[u8],
+    ) -> rlua::Result<ScriptType> {
         let key = self.lua.context(|ctx| {
-            let system_fn: rlua::Function = ctx.load(code).eval()?;
+            let system_fn: rlua::Function = ctx.load(code).set_name(name)?.eval()?;
             ctx.create_registry_value(system_fn)
         })?;
         let old = self.systems.insert(id, System::Lua(key));
@@ -97,8 +106,18 @@ impl<ID, Q> World<ID, Q> where ID: Hash + Eq {
         code: &[u8],
         post_process: impl FnMut(rlua::Value) -> Q + 'static,
     ) -> rlua::Result<ScriptType> {
+        self.register_named_lua_query(id, b"unnamed query", code, post_process)
+    }
+
+    pub fn register_named_lua_query(
+        &mut self,
+        id: ID,
+        name: &[u8],
+        code: &[u8],
+        post_process: impl FnMut(rlua::Value) -> Q + 'static,
+    ) -> rlua::Result<ScriptType> {
         let key = self.lua.context(|ctx| {
-            let query_fn: rlua::Function = ctx.load(code).eval()?;
+            let query_fn: rlua::Function = ctx.load(code).set_name(name)?.eval()?;
             ctx.create_registry_value(query_fn)
         })?;
         let old = self.queries.insert(id, Query::Lua(key, Box::new(post_process)));
