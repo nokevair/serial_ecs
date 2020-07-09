@@ -66,22 +66,22 @@ impl<ID, Q> World<ID, Q> where ID: Hash + Eq {
         ScriptType::from_opt_system(old.as_ref())
     }
 
-    pub fn run_system(&mut self, id: &ID) -> rlua::Result<()> {
+    pub fn run_system(&mut self, id: &ID) -> rlua::Result<bool> {
         match self.systems.get_mut(id) {
-            None => Ok(()),
+            None => Ok(false),
             Some(System::Lua(key)) => {
                 let ctx_ref_key = &self.ctx_ref_key;
                 self.lua.context(|ctx| {
                     let system_fn: rlua::Function = ctx.registry_value(key)?;
                     let ctx_ref: rlua::Value = ctx.registry_value(&ctx_ref_key)?;
                     let _: rlua::Value = system_fn.call(ctx_ref)?;
-                    Ok(())
+                    Ok(true)
                 })
             }
             Some(System::Native(ref mut func)) => {
                 let mut world = self.ctx_ref.write();
                 func(&mut *world);
-                Ok(())
+                Ok(true)
             }
         }
     }
