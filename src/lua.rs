@@ -1,8 +1,9 @@
+use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use rlua::{Lua, RegistryKey};
 
 use std::collections::HashMap;
 use std::io;
-use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard, PoisonError};
+use std::sync::Arc;
 
 use crate::decode;
 use crate::encode;
@@ -29,11 +30,11 @@ pub struct World<ID, Q> {
 
 impl ContextRef {
     fn read(&self) -> RwLockReadGuard<WorldContext> {
-        self.0.read().unwrap_or_else(PoisonError::into_inner)
+        self.0.read()
     }
 
     fn write(&self) -> RwLockWriteGuard<WorldContext> {
-        self.0.write().unwrap_or_else(PoisonError::into_inner)
+        self.0.write()
     }
 }
 
