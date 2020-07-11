@@ -1,3 +1,5 @@
+pub use rlua;
+
 mod decode;
 mod encode;
 
